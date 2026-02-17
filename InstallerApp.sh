@@ -1,1095 +1,732 @@
 #!/bin/bash
 
-# ============================================
-# Kit de Instalación para Arch Linux
-# Estilo: Ranger TUI con descripciones
-# ============================================
+################################################################################
+# ARCH LINUX APPLICATION INSTALLER - CON CONFIRMACIÓN DE DEPENDENCIAS
+################################################################################
 
-# Configuración de terminal
-export TERM=xterm-256color
-shopt -s checkwinsize
+set -o pipefail
 
-# ============================================
-# PALETA DE COLORES
-# ============================================
+readonly VERSION="4.0-interactive"
+readonly CONFIG_DIR="${HOME}/.config/arch-academic-installer"
+readonly LOG_FILE="${CONFIG_DIR}/install.log"
 
-# Reset y estilos
-RESET='\033[0m'
-BOLD='\033[1m'
-DIM='\033[2m'
+mkdir -p "$CONFIG_DIR" 2>/dev/null || true
 
-# Violetas y púrpuras
-VIOLET_DARK='\033[38;5;55m'
-VIOLET='\033[38;5;93m'
-VIOLET_BRIGHT='\033[38;5;141m'
-VIOLET_NEON='\033[38;5;165m'
-MAGENTA_GLOW='\033[38;5;198m'
+#===============================================================================
+# COLORES
+#===============================================================================
 
-# Backgrounds violetas
-BG_VIOLET_DARK='\033[48;5;55m'
-BG_VIOLET='\033[48;5;93m'
-BG_VIOLET_BRIGHT='\033[48;5;141m'
+C_RESET='\033[0m'
+C_BOLD='\033[1m'
+C_DIM='\033[2m'
+C_NAVY='\033[38;5;17m'
+C_SLATE='\033[38;5;59m'
+C_ACADEMY='\033[38;5;31m'
+C_GOLD='\033[38;5;136m'
+C_BURGUNDY='\033[38;5;88m'
+C_FOREST='\033[38;5;22m'
+C_ORANGE='\033[38;5;208m'
+C_RED='\033[38;5;196m'
+C_GRAY_LIGHT='\033[38;5;250m'
+C_GRAY='\033[38;5;245m'
 
-# Colores de acento
-CYAN='\033[38;5;51m'
-CYAN_BRIGHT='\033[38;5;87m'
-GREEN='\033[38;5;82m'
-GREEN_BRIGHT='\033[38;5;118m'
-GOLD='\033[38;5;220m'
-GOLD_BRIGHT='\033[38;5;226m'
-ORANGE='\033[38;5;208m'
-ORANGE_BRIGHT='\033[38;5;214m'
-WHITE='\033[38;5;255m'
-WHITE_BRIGHT='\033[38;5;231m'
-GRAY='\033[38;5;245m'
-GRAY_DARK='\033[38;5;240m'
+BG_SELECT='\033[48;5;234m'
 
-# ============================================
-# SÍMBOLOS Y CARACTERES
-# ============================================
+#===============================================================================
+# CARACTERES
+#===============================================================================
 
-# Marcadores de estado
-CHECK='✓'
-CHECK_HEAVY='✔'
-CIRCLE='○'
-CIRCLE_FILLED='●'
-ARROW='▶'
-ARROW_DOUBLE='»'
-BULLET='•'
-DIAMOND='◆'
-STAR='★'
+U_TL='┌'; U_TR='┐'; U_BL='└'; U_BR='┘'
+U_H='─'; U_V='│'; U_VR='├'; U_VL='┤'
 
-# Separadores
-LINE_SINGLE='─'
-LINE_DOUBLE='═'
-LINE_THICK='━'
+I_CHECK='✓'
+I_BULLET='•'
+I_ARROW='▶'
+I_CIRCLE='○'
+I_HOURGLASS='⏳'
+I_WARNING='⚠'
+I_QUESTION='?'
+I_SPINNER=('◐' '◓' '◑' '◒')
 
-# ============================================
-# VARIABLES GLOBALES
-# ============================================
+#===============================================================================
+# CATÁLOGO CORREGIDO (8 obligatorias + 5 académicas)
+#===============================================================================
 
-# Dimensiones de terminal
-TERMINAL_WIDTH=0
-TERMINAL_HEIGHT=0
+declare -A APPS APP_CAT APP_DESC APP_METHOD APP_CMD APP_URL APP_DEPS
 
-# Dimensiones de paneles
-PANEL_LEFT_WIDTH=45
-PANEL_RIGHT_WIDTH=0
-PANEL_HEIGHT=0
-
-# Navegación
-SELECTED_INDEX=1
-TOTAL_APPS=8
-SCROLL_OFFSET=1
-VISIBLE_ITEMS=0
-
-# ============================================
-# ARRAYS DE DATOS
-# ============================================
-
-# Nombres de aplicaciones
-declare -A APPS
-
-# Descripciones detalladas
-declare -A DESCRIPTIONS
-
-# Comandos de instalación
-declare -A INSTALL_CMDS
-
-# Nombres de paquetes
-declare -A PKG_NAMES
-
-# Categorías
-declare -A CATEGORIES
-
-# Estado de instalación (0=no, 1=sí)
-declare -A INSTALLED_STATUS
-
-# Selección para instalación batch
-declare -A SELECTED_TO_INSTALL
-
-# Iconos por categoría
-declare -A ICONS
-
-# ============================================
-# FUNCIONES DE UTILIDAD BÁSICAS
-# ============================================
-
-# Obtiene el tamaño actual de la terminal
-function update_terminal_size() {
-    # Leer dimensiones de la terminal
-    read -r TERMINAL_HEIGHT TERMINAL_WIDTH < <(stty size)
-    
-    # Calcular items visibles (dejar espacio para header y footer)
-    VISIBLE_ITEMS=$((TERMINAL_HEIGHT - 12))
-    
-    # Asegurar valores mínimos y máximos
-    if [ $VISIBLE_ITEMS -gt $TOTAL_APPS ]; then
-        VISIBLE_ITEMS=$TOTAL_APPS
-    fi
-    
-    if [ $VISIBLE_ITEMS -lt 1 ]; then
-        VISIBLE_ITEMS=1
-    fi
-    
-    # Calcular ancho del panel derecho
-    PANEL_RIGHT_WIDTH=$((TERMINAL_WIDTH - PANEL_LEFT_WIDTH - 6))
-    
-    # Asegurar ancho mínimo
-    if [ $PANEL_RIGHT_WIDTH -lt 30 ]; then
-        PANEL_RIGHT_WIDTH=30
-    fi
-    
-    # Calcular altura de paneles
-    PANEL_HEIGHT=$((VISIBLE_ITEMS + 4))
+define_app() {
+    local idx=$1
+    APPS[$idx]=$2
+    APP_CAT[$idx]=$3
+    APP_DESC[$idx]=$4
+    APP_METHOD[$idx]=$5
+    APP_CMD[$idx]=$6
+    APP_URL[$idx]=$7
+    APP_DEPS[$idx]="${8:-}"
 }
 
-# Verifica si un paquete está instalado
-function is_package_installed() {
-    local package_name="$1"
+# 8 OBLIGATORIAS (corregidas)
+define_app 0 "Obsidian" "Knowledge Management" \
+    "Sistema de notas con grafos de conocimiento bidireccionales. Soporta Markdown, plugins, temas personalizados y sincronización cifrada." \
+    "flatpak" \
+    "flatpak install -y flathub md.obsidian.Obsidian" \
+    "https://obsidian.md" \
+    "flatpak"
+
+define_app 1 "Stacer" "System Administration" \
+    "Suite integrada de administración de sistema. Monitorización de recursos, gestión de procesos, limpieza de archivos y optimización." \
+    "aur" \
+    "yay -S --noconfirm stacer" \
+    "https://github.com/oguzhaninan/Stacer" \
+    "yay"
+
+define_app 2 "OnlyOffice" "Productivity Suite" \
+    "Suite ofimática completa con compatibilidad Microsoft Office. Incluye procesador de textos, hojas de cálculo y presentaciones." \
+    "flatpak" \
+    "flatpak install -y flathub org.onlyoffice.desktopeditors" \
+    "https://www.onlyoffice.com" \
+    "flatpak"
+
+define_app 3 "Flatpak" "Package Management" \
+    "Sistema de gestión de paquetes universal con sandboxing. Permite despliegue de aplicaciones independientes de la distribución." \
+    "pacman" \
+    "sudo pacman -S --noconfirm flatpak" \
+    "https://flatpak.org" \
+    ""
+
+define_app 4 "WebCatalog" "Web Applications" \
+    "Convierte sitios web en aplicaciones de escritorio nativas. Alternativa: se instalará como webapp si no está en repositorios." \
+    "aur" \
+    "yay -S --noconfirm webcatalog-appimage" \
+    "https://webcatalog.io" \
+    "yay"
+
+define_app 5 "Brave Browser" "Internet Navigation" \
+    "Navegador orientado a la privacidad con bloqueo nativo de publicidad, protección contra fingerprinting e integración Tor." \
+    "aur" \
+    "yay -S --noconfirm brave-bin" \
+    "https://brave.com" \
+    "yay"
+
+define_app 6 "KDE Connect" "Device Integration" \
+    "Infraestructura de integración entre estaciones de trabajo y dispositivos móviles. Transferencia segura de archivos y sincronización." \
+    "pacman" \
+    "sudo pacman -S --noconfirm kdeconnect" \
+    "https://kdeconnect.kde.org" \
+    ""
+
+define_app 7 "TimeShift" "System Recovery" \
+    "Sistema de snapshots con modelo de restauración temporal. Puntos de recuperación automáticos mediante Btrfs o rsync." \
+    "aur" \
+    "yay -S --noconfirm timeshift" \
+    "https://github.com/linuxmint/timeshift" \
+    "yay"
+
+# 5 ACADÉMICAS (corregidas)
+define_app 8 "Zotero" "Research Tools" \
+    "Gestor de referencias bibliográficas. Organiza citas, genera bibliografías automáticas en múltiples formatos y extrae metadatos de PDFs." \
+    "aur" \
+    "yay -S --noconfirm zotero-bin" \
+    "https://www.zotero.org" \
+    "yay"
+
+define_app 9 "Anki" "Education" \
+    "Sistema de aprendizaje con tarjetas de repetición espaciada. Optimiza la memorización a largo plazo mediante algoritmos adaptativos." \
+    "pacman" \
+    "sudo pacman -S --noconfirm anki" \
+    "https://apps.ankiweb.net" \
+    ""
+
+define_app 10 "TeX Live" "Typesetting" \
+    "Distribución completa de LaTeX para composición tipográfica profesional. Instala el grupo completo de paquetes." \
+    "pacman" \
+    "sudo pacman -S --noconfirm texlive texlive-langspanish" \
+    "https://tug.org/texlive/" \
+    ""
+
+define_app 11 "Joplin" "Note Taking" \
+    "Aplicación de notas de código abierto con sincronización end-to-end encryption. Soporta Markdown y organización en cuadernos." \
+    "aur" \
+    "yay -S --noconfirm joplin-desktop" \
+    "https://joplinapp.org" \
+    "yay"
+
+define_app 12 "RStudio" "Data Science" \
+    "Entorno de desarrollo integrado para el lenguaje R. Editor de código, visualización de datos, gestión de paquetes y generación de informes reproducibles." \
+    "aur" \
+    "yay -S --noconfirm rstudio-desktop-bin" \
+    "https://www.rstudio.com" \
+    "yay"
+
+TOTAL_APPS=${#APPS[@]}
+
+#===============================================================================
+# VARIABLES
+#===============================================================================
+
+SELECTED_INDEX=0
+SCROLL_OFFSET=0
+declare -A SELECTION_STATE
+declare -A INSTALLED_CACHE
+declare -A DEPENDENCIES_INSTALLED
+TERMINAL_HEIGHT=0
+TERMINAL_WIDTH=0
+VISIBLE_ITEMS=0
+NEEDS_REDRAW=true
+IS_INSTALLING=false
+LAST_ERROR=""
+SKIP_ALL_DEPENDENCIES=false
+AUTO_INSTALL_DEPENDENCIES=false
+
+#===============================================================================
+# FUNCIONES BÁSICAS
+#===============================================================================
+
+log_msg() { echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"; }
+clear_screen() { printf '\033[2J\033[H'; }
+hide_cursor() { printf '\033[?25l'; }
+show_cursor() { printf '\033[?25h'; }
+move_cursor() { printf '\033[%d;%dH' "$1" "$2"; }
+clear_line() { printf '\033[2K'; }
+
+get_terminal_size() {
+    if command -v tput &>/dev/null; then
+        TERMINAL_HEIGHT=$(tput lines)
+        TERMINAL_WIDTH=$(tput cols)
+    else
+        read -r TERMINAL_HEIGHT TERMINAL_WIDTH < <(stty size 2>/dev/null || echo "24 80")
+    fi
+    [[ -z "$TERMINAL_HEIGHT" ]] && TERMINAL_HEIGHT=24
+    [[ -z "$TERMINAL_WIDTH" ]] && TERMINAL_WIDTH=80
     
-    # Verificar con pacman
-    if pacman -Q "$package_name" &>/dev/null; then
+    VISIBLE_ITEMS=$((TERMINAL_HEIGHT - 12))
+    [[ $VISIBLE_ITEMS -lt 3 ]] && VISIBLE_ITEMS=3
+    [[ $VISIBLE_ITEMS -gt $TOTAL_APPS ]] && VISIBLE_ITEMS=$TOTAL_APPS
+}
+
+command_exists() { command -v "$1" &>/dev/null; }
+
+cleanup() {
+    show_cursor
+    stty sane 2>/dev/null || true
+    printf "${C_RESET}"
+}
+
+#===============================================================================
+# CONFIRMACIÓN INTERACTIVA DE DEPENDENCIAS
+#===============================================================================
+
+ask_user() {
+    local question="$1"
+    local default="${2:-y}"
+    
+    show_cursor
+    printf "\n  ${C_GOLD}${I_QUESTION} %s${C_RESET} " "$question"
+    
+    if $AUTO_INSTALL_DEPENDENCIES; then
+        printf "${C_FOREST}[auto-yes]${C_RESET}\n"
+        hide_cursor
         return 0
     fi
     
-    # Verificar con yay (AUR)
-    if command -v yay &>/dev/null; then
-        if yay -Q "$package_name" &>/dev/null 2>/dev/null; then
-            return 0
-        fi
+    if $SKIP_ALL_DEPENDENCIES; then
+        printf "${C_GRAY}[auto-no]${C_RESET}\n"
+        hide_cursor
+        return 1
     fi
     
-    # Verificar con flatpak
-    if command -v flatpak &>/dev/null; then
-        if flatpak list 2>/dev/null | grep -qi "$package_name"; then
-            return 0
-        fi
+    local response
+    read -r response
+    
+    # Si solo presionó enter, usar default
+    [[ -z "$response" ]] && response="$default"
+    
+    hide_cursor
+    
+    case "${response,,}" in
+        y|yes|s|si) return 0 ;;
+        a|all) AUTO_INSTALL_DEPENDENCIES=true; return 0 ;;
+        n|no) return 1 ;;
+        s|skip) SKIP_ALL_DEPENDENCIES=true; return 1 ;;
+        *) [[ "$default" == "y" ]] && return 0 || return 1 ;;
+    esac
+}
+
+ensure_dependency() {
+    local dep="$1"
+    
+    # Verificar cache
+    [[ -n "${DEPENDENCIES_INSTALLED[$dep]:-}" ]] && return "${DEPENDENCIES_INSTALLED[$dep]}"
+    
+    if command_exists "$dep"; then
+        DEPENDENCIES_INSTALLED[$dep]=0
+        return 0
     fi
     
-    return 1
-}
-
-# Actualiza el estado de instalación de todas las apps
-function update_all_install_status() {
-    local index
+    printf "\n  ${C_ORANGE}${I_WARNING} Missing dependency: ${C_BOLD}%s${C_RESET}\n" "$dep"
+    printf "  ${C_GRAY_LIGHT}This is required to install AUR/Flatpak packages.${C_RESET}\n\n"
     
-    for index in $(seq 1 $TOTAL_APPS); do
-        if is_package_installed "${PKG_NAMES[$index]}"; then
-            INSTALLED_STATUS[$index]=1
-        else
-            INSTALLED_STATUS[$index]=0
-        fi
-    done
-}
-
-# ============================================
-# INICIALIZACIÓN DE DATOS
-# ============================================
-
-function initialize_data() {
-    # Definir iconos para cada categoría
-    ICONS[NOTAS]="📝"
-    ICONS[SISTEMA]="⚙️"
-    ICONS[OFIMÁTICA]="📊"
-    ICONS[PAQUETES]="📦"
-    ICONS[INTERNET]="🌐"
-    ICONS[NAVEGADOR]="🦁"
-    ICONS[CONEXIÓN]="📱"
-    ICONS[RESPALDO]="💾"
-    
-    # ========================================
-    # APP 1: Obsidian
-    # ========================================
-    APPS[1]="Obsidian"
-    CATEGORIES[1]="NOTAS"
-    PKG_NAMES[1]="obsidian"
-    INSTALL_CMDS[1]="install_yay obsidian"
-    
-    DESCRIPTIONS[1]="Editor de notas basado en Markdown con enlaces bidireccionales \
-y visualización de grafos de conocimiento. Ideal para construir un Second Brain, \
-sistemas Zettelkasten y gestión de conocimiento personal. Soporta plugins, temas \
-personalizados, sincronización cifrada y trabajo offline completo."
-    
-    # ========================================
-    # APP 2: Stacer
-    # ========================================
-    APPS[2]="Stacer"
-    CATEGORIES[2]="SISTEMA"
-    PKG_NAMES[2]="stacer"
-    INSTALL_CMDS[2]="install_yay stacer"
-    
-    DESCRIPTIONS[2]="Administrador de sistema todo-en-uno con interfaz moderna \
-y amigable. Incluye limpieza de archivos temporales y caché, monitor de recursos \
-en tiempo real con gráficos, gestor de procesos, control de aplicaciones de inicio \
-y herramientas de optimización del sistema."
-    
-    # ========================================
-    # APP 3: OnlyOffice
-    # ========================================
-    APPS[3]="OnlyOffice"
-    CATEGORIES[3]="OFIMÁTICA"
-    PKG_NAMES[3]="onlyoffice-bin"
-    INSTALL_CMDS[3]="install_yay onlyoffice-bin"
-    
-    DESCRIPTIONS[3]="Suite ofimática completa compatible al 100% con Microsoft \
-Office. Soporta nativamente formatos DOCX, XLSX, PPTX. Incluye editor de documentos, \
-hojas de cálculo y presentaciones. Cuenta con modo oscuro, colaboración en tiempo \
-real y es completamente libre y gratuito."
-    
-    # ========================================
-    # APP 4: Flatpak + Flathub
-    # ========================================
-    APPS[4]="Flatpak + Flathub"
-    CATEGORIES[4]="PAQUETES"
-    PKG_NAMES[4]="flatpak"
-    INSTALL_CMDS[4]="install_pacman flatpak && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
-    
-    DESCRIPTIONS[4]="Sistema de empaquetado universal con sandboxing que permite \
-instalar aplicaciones de manera segura. Proporciona acceso a miles de apps a través \
-de Flathub. Ofrece aislamiento de seguridad, actualizaciones automáticas y \
-compatibilidad total entre diferentes distribuciones Linux."
-    
-    # ========================================
-    # APP 5: WebCatalog
-    # ========================================
-    APPS[5]="WebCatalog"
-    CATEGORIES[5]="INTERNET"
-    PKG_NAMES[5]="webcatalog"
-    INSTALL_CMDS[5]="install_yay webcatalog"
-    
-    DESCRIPTIONS[5]="Convierte cualquier sitio web en aplicación de escritorio \
-nativa. Cada app tiene su propio contenedor aislado, notificaciones nativas del \
-sistema, badges de contador en el dock, atajos de teclado personalizados y menú \
-contextual integrado. Perfecto para Gmail, WhatsApp, Notion, etc."
-    
-    # ========================================
-    # APP 6: Brave Browser
-    # ========================================
-    APPS[6]="Brave Browser"
-    CATEGORIES[6]="NAVEGADOR"
-    PKG_NAMES[6]="brave-bin"
-    INSTALL_CMDS[6]="install_yay brave-bin"
-    
-    DESCRIPTIONS[6]="Navegador web basado en Chromium con bloqueador de anuncios \
-y trackers integrado nativamente. Incluye modo Tor para navegación privada, \
-recompensas en criptomoneda BAT por ver anuncios opcionales, sincronización \
-segura entre dispositivos y enfocado en privacidad por defecto."
-    
-    # ========================================
-    # APP 7: KDE Connect
-    # ========================================
-    APPS[7]="KDE Connect"
-    CATEGORIES[7]="CONEXIÓN"
-    PKG_NAMES[7]="kdeconnect"
-    INSTALL_CMDS[7]="install_pacman kdeconnect"
-    
-    DESCRIPTIONS[7]="Integración completa entre tu computadora y dispositivos \
-móviles Android o iOS. Permite transferencia rápida de archivos, espejo de \
-notificaciones, control remoto del cursor y teclado, uso del móvil como \
-presentador, sincronización del portapapeles y más."
-    
-    # ========================================
-    # APP 8: TimeShift
-    # ========================================
-    APPS[8]="TimeShift"
-    CATEGORIES[8]="RESPALDO"
-    PKG_NAMES[8]="timeshift"
-    INSTALL_CMDS[8]="install_pacman timeshift"
-    
-    DESCRIPTIONS[8]="Sistema de snapshots del sistema operativo completo. Crea \
-puntos de restauración automáticos antes de actualizaciones. Permite volver a \
-un estado anterior del sistema en segundos si algo falla. Esencial para mantener \
-Arch Linux estable y recuperarse de problemas."
-    
-    # Verificar estado de instalación
-    update_all_install_status
-}
-
-# ============================================
-# FUNCIONES DE CONTROL DE TERMINAL
-# ============================================
-
-# Limpia toda la pantalla
-function clear_screen() {
-    printf '\033[2J\033[H'
-}
-
-# Mueve el cursor a posición específica
-function move_cursor() {
-    local row="$1"
-    local col="$2"
-    printf '\033[%d;%dH' "$row" "$col"
-}
-
-# Limpia la línea actual desde el cursor hasta el final
-function clear_to_end_of_line() {
-    printf '\033[K'
-}
-
-# Limpia toda la línea
-function clear_entire_line() {
-    printf '\033[2K'
-}
-
-# Oculta el cursor
-function hide_cursor() {
-    printf '\033[?25l'
-}
-
-# Muestra el cursor
-function show_cursor() {
-    printf '\033[?25h'
-}
-
-# ============================================
-# FUNCIONES DE DIBUJO DE COMPONENTES
-# ============================================
-
-# Dibuja una línea horizontal
-function draw_horizontal_line() {
-    local length="$1"
-    local char="${2:-$LINE_SINGLE}"
-    local color="${3:-$VIOLET}"
-    
-    printf "${color}"
-    for ((i=0; i<length; i++)); do
-        printf "%s" "$char"
-    done
-    printf "${RESET}"
-}
-
-# Dibuja el encabezado principal
-function draw_header() {
-    local title="⚡ ARCH LINUX INSTALLER KIT"
-    local subtitle="↑↓:navegar • Espacio:seleccionar • Enter:instalar • q:salir"
-    
-    # Línea superior del marco
-    move_cursor 1 1
-    clear_entire_line
-    printf "${VIOLET}╔"
-    draw_horizontal_line $((TERMINAL_WIDTH - 2)) "═" "$VIOLET"
-    printf "╗${RESET}\n"
-    
-    # Línea del título
-    move_cursor 2 1
-    clear_entire_line
-    printf "${VIOLET}║${RESET}  ${GOLD}${BOLD}%-*s${RESET}" $((TERMINAL_WIDTH - 4)) "$title"
-    move_cursor 2 $((TERMINAL_WIDTH - 1))
-    printf "${VIOLET}║${RESET}\n"
-    
-    # Línea del subtítulo
-    move_cursor 3 1
-    clear_entire_line
-    printf "${VIOLET}║${RESET}  ${GRAY}%-*s${RESET}" $((TERMINAL_WIDTH - 4)) "$subtitle"
-    move_cursor 3 $((TERMINAL_WIDTH - 1))
-    printf "${VIOLET}║${RESET}\n"
-    
-    # Línea inferior del marco
-    move_cursor 4 1
-    clear_entire_line
-    printf "${VIOLET}╚"
-    draw_horizontal_line $((TERMINAL_WIDTH - 2)) "═" "$VIOLET"
-    printf "╝${RESET}\n"
-}
-
-# Dibuja un item de la lista (normal o seleccionado)
-function draw_list_item() {
-    local row="$1"
-    local col="$2"
-    local index="$3"
-    local is_selected="$4"
-    
-    local app_name="${APPS[$index]}"
-    local category="${CATEGORIES[$index]}"
-    local installed=${INSTALLED_STATUS[$index]}
-    local selected=${SELECTED_TO_INSTALL[$index]:-0}
-    
-    # Truncar nombre si es muy largo
-    local display_name="$app_name"
-    if [ ${#display_name} -gt 22 ]; then
-        display_name="${display_name:0:21}…"
+    if ! ask_user "Install $dep now? [Y/n/a=all/s=skip]" "y"; then
+        printf "  ${C_GRAY}Skipping $dep installation${C_RESET}\n\n"
+        DEPENDENCIES_INSTALLED[$dep]=1
+        return 1
     fi
     
-    # Mover a posición y limpiar línea
-    move_cursor $row $col
-    clear_entire_line
-    
-    if [ $is_selected -eq 1 ]; then
-        # ====================================
-        # ITEM SELECCIONADO (con contorno violeta)
-        # ====================================
-        
-        # Fondo violeta oscuro para toda la línea
-        printf "${BG_VIOLET_DARK}"
-        
-        # Número de ítem (alineado a 2 dígitos)
-        printf " %2d. " "$index"
-        
-        # Icono de categoría
-        printf "%s " "${ICONS[$category]}"
-        
-        # Nombre con fondo violeta brillante (efecto marcador)
-        local name_padding=$((23 - ${#display_name}))
-        printf "${BG_VIOLET}${WHITE}${BOLD} %s${RESET}${BG_VIOLET_DARK}" "$display_name"
-        printf "%${name_padding}s" ""
-        
-        # Espaciado
-        printf "  "
-        
-        # Indicador de selección para instalación batch
-        if [ $selected -eq 1 ]; then
-            printf "${MAGENTA_GLOW}[${CHECK}]${RESET}${BG_VIOLET_DARK}"
-        else
-            printf "   "
-        fi
-        
-        # Indicador de estado instalado
-        printf "  "
-        if [ $installed -eq 1 ]; then
-            printf "${GREEN}${CHECK}${RESET}${BG_VIOLET_DARK}"
-        else
-            printf "${GRAY}${CIRCLE}${RESET}${BG_VIOLET_DARK}"
-        fi
-        
-        # Flecha indicadora de selección
-        printf "  ${GOLD}${ARROW}${RESET}"
-        
-        # Rellenar resto de la línea para limpiar residuos
-        local used_length=45
-        local remaining=$((PANEL_LEFT_WIDTH - used_length))
-        if [ $remaining -gt 0 ]; then
-            printf "${BG_VIOLET_DARK}%*s${RESET}" $remaining ""
-        fi
-        
-        printf "${RESET}"
-        
-    else
-        # ====================================
-        # ITEM NO SELECCIONADO (normal)
-        # ====================================
-        
-        # Número e icono
-        printf " %2d. %s " "$index" "${ICONS[$category]}"
-        
-        # Nombre (gris si está instalado, blanco si no)
-        if [ $installed -eq 1 ]; then
-            printf "${GRAY}${DIM}%-23s${RESET}" "$display_name"
-        else
-            printf "%-23s" "$display_name"
-        fi
-        
-        # Espaciado
-        printf "  "
-        
-        # Indicador de selección batch
-        if [ $selected -eq 1 ]; then
-            printf "${MAGENTA_GLOW}[${CHECK}]${RESET}"
-        else
-            printf "   "
-        fi
-        
-        # Indicador de estado
-        printf "  "
-        if [ $installed -eq 1 ]; then
-            printf "${GREEN}${CHECK}${RESET}"
-        else
-            printf "${GRAY}${CIRCLE}${RESET}"
-        fi
-        
-        # Espacio donde iría la flecha en el seleccionado
-        printf "   "
-        
-        # Limpiar resto de línea
-        clear_to_end_of_line
-    fi
-}
-
-# Dibuja el panel izquierdo (lista de aplicaciones)
-function draw_left_panel() {
-    local start_y=6
-    local start_x=2
-    local title="◆ PAQUETES DISPONIBLES"
-    
-    # Título del panel
-    move_cursor $start_y $start_x
-    clear_entire_line
-    printf "${VIOLET_BRIGHT}${BOLD}  %s${RESET}" "$title"
-    
-    # Línea separadora
-    move_cursor $((start_y + 1)) $start_x
-    clear_entire_line
-    printf "${VIOLET_DARK}  "
-    draw_horizontal_line 40 "─" "$VIOLET_DARK"
-    printf "${RESET}"
-    
-    # Calcular rango de ítems a mostrar
-    local list_start=$((start_y + 3))
-    local end_idx=$((SCROLL_OFFSET + VISIBLE_ITEMS - 1))
-    
-    if [ $end_idx -gt $TOTAL_APPS ]; then
-        end_idx=$TOTAL_APPS
-    fi
-    
-    # Dibujar cada ítem visible
-    local current_row=$list_start
-    local index
-    
-    for index in $(seq $SCROLL_OFFSET $end_idx); do
-        if [ $index -eq $SELECTED_INDEX ]; then
-            draw_list_item $current_row $start_x $index 1
-        else
-            draw_list_item $current_row $start_x $index 0
-        fi
-        ((current_row++))
-    done
-    
-    # Limpiar líneas sobrantes si las hay
-    while [ $current_row -lt $((list_start + VISIBLE_ITEMS)) ]; do
-        move_cursor $current_row $start_x
-        clear_entire_line
-        ((current_row++))
-    done
-    
-    # Indicador de scroll hacia arriba
-    if [ $SCROLL_OFFSET -gt 1 ]; then
-        move_cursor $((start_y + 2)) $((PANEL_LEFT_WIDTH - 3))
-        printf "${VIOLET_NEON}▲${RESET}"
-    fi
-    
-    # Indicador de scroll hacia abajo
-    if [ $end_idx -lt $TOTAL_APPS ]; then
-        move_cursor $((list_start + VISIBLE_ITEMS - 1)) $((PANEL_LEFT_WIDTH - 3))
-        printf "${VIOLET_NEON}▼${RESET}"
-    fi
-}
-
-# Dibuja el panel derecho (información detallada)
-function draw_right_panel() {
-    local start_y=6
-    local start_x=$((PANEL_LEFT_WIDTH + 4))
-    local width=$PANEL_RIGHT_WIDTH
-    local height=$((VISIBLE_ITEMS + 2))
-    
-    local content_x=$((start_x + 2))
-    local content_width=$((width - 4))
-    
-    # ========================================
-    # LIMPIAR ÁREA DEL PANEL
-    # ========================================
-    
-    local i
-    for ((i=0; i<=height+2; i++)); do
-        move_cursor $((start_y + i)) $start_x
-        clear_entire_line
-    done
-    
-    # ========================================
-    # DIBUJAR MARCO
-    # ========================================
-    
-    # Esquina superior izquierda
-    move_cursor $start_y $start_x
-    printf "${VIOLET}┌${RESET}"
-    
-    # Línea superior
-    draw_horizontal_line $((width - 2)) "─" "$VIOLET"
-    
-    # Esquina superior derecha
-    printf "${VIOLET}┐${RESET}\n"
-    
-    # Lados del marco
-    for ((i=1; i<=height; i++)); do
-        move_cursor $((start_y + i)) $start_x
-        printf "${VIOLET}│${RESET}"
-        
-        # Espacio interior limpio
-        printf "%*s" $((width - 2)) ""
-        
-        move_cursor $((start_y + i)) $((start_x + width - 1))
-        printf "${VIOLET}│${RESET}\n"
-    done
-    
-    # Esquina inferior izquierda
-    move_cursor $((start_y + height + 1)) $start_x
-    printf "${VIOLET}└${RESET}"
-    
-    # Línea inferior
-    draw_horizontal_line $((width - 2)) "─" "$VIOLET"
-    
-    # Esquina inferior derecha
-    printf "${VIOLET}┘${RESET}\n"
-    
-    # ========================================
-    # CONTENIDO INTERNO
-    # ========================================
-    
-    local current_y=$((start_y + 2))
-    
-    # ----------------------------------------
-    # Nombre de la aplicación
-    # ----------------------------------------
-    move_cursor $current_y $content_x
-    printf "${GOLD}${BOLD}%-*s${RESET}" "$content_width" "${APPS[$SELECTED_INDEX]}"
-    
-    # ----------------------------------------
-    # Categoría con badge
-    # ----------------------------------------
-    current_y=$((current_y + 1))
-    move_cursor $current_y $content_x
-    printf "${BG_VIOLET_DARK} %s ${RESET} %s" \
-        "${CATEGORIES[$SELECTED_INDEX]}" \
-        "${ICONS[${CATEGORIES[$SELECTED_INDEX]}]}"
-    
-    # ----------------------------------------
-    # Línea separadora
-    # ----------------------------------------
-    current_y=$((current_y + 1))
-    move_cursor $current_y $content_x
-    local separator=""
-    for ((i=0; i<content_width; i++)); do
-        separator="${separator}─"
-    done
-    printf "${VIOLET_DARK}%s${RESET}" "$separator"
-    
-    # ----------------------------------------
-    # DESCRIPCIÓN (con word wrap)
-    # ----------------------------------------
-    current_y=$((current_y + 2))
-    
-    local description="${DESCRIPTIONS[$SELECTED_INDEX]}"
-    local max_desc_lines=$((height - 6))
-    local line_num=0
-    
-    # Procesar descripción línea por línea
-    while [ ${#description} -gt 0 ] && [ $line_num -lt $max_desc_lines ]; do
-        move_cursor $current_y $content_x
-        
-        if [ ${#description} -le $content_width ]; then
-            # Última línea (cabe completa)
-            printf "%-*s" "$content_width" "$description"
-            clear_to_end_of_line
-            break
-        else
-            # Buscar corte en espacio para no partir palabras
-            local cut_pos=$content_width
-            local found_space=0
+    # Instalar según dependencia
+    case "$dep" in
+        yay)
+            printf "  ${C_GRAY_LIGHT}Installing yay (AUR helper)...${C_RESET}\n"
+            printf "  ${C_DIM}This requires: git, base-devel${C_RESET}\n\n"
             
-            for ((j=content_width-1; j>=0; j--)); do
-                if [ "${description:$j:1}" = " " ]; then
-                    cut_pos=$j
-                    found_space=1
-                    break
-                fi
-            done
-            
-            # Si no hay espacio, cortar forzosamente
-            if [ $found_space -eq 0 ]; then
-                cut_pos=$content_width
+            if ! ask_user "Proceed with yay installation? [Y/n]" "y"; then
+                DEPENDENCIES_INSTALLED[$dep]=1
+                return 1
             fi
             
-            # Extraer línea y actualizar descripción restante
-            local line="${description:0:$cut_pos}"
-            description="${description:$cut_pos}"
+            # Instalar dependencias de compilación
+            printf "  ${C_GRAY_LIGHT}Installing build dependencies...${C_RESET}\n"
+            if ! sudo pacman -S --needed --noconfirm git base-devel 2>&1 | tee -a "$LOG_FILE"; then
+                printf "  ${C_RED}✗ Failed to install build dependencies${C_RESET}\n\n"
+                DEPENDENCIES_INSTALLED[$dep]=1
+                return 1
+            fi
             
-            # Quitar espacios iniciales de la descripción restante
-            while [ "${description:0:1}" = " " ]; do
-                description="${description:1}"
+            # Clonar y compilar yay
+            printf "  ${C_GRAY_LIGHT}Cloning yay repository...${C_RESET}\n"
+            cd /tmp && rm -rf yay
+            if ! git clone https://aur.archlinux.org/yay.git 2>&1 | tee -a "$LOG_FILE"; then
+                printf "  ${C_RED}✗ Failed to clone yay${C_RESET}\n\n"
+                DEPENDENCIES_INSTALLED[$dep]=1
+                return 1
+            fi
+            
+            cd yay
+            printf "  ${C_GRAY_LIGHT}Building yay (this may take a minute)...${C_RESET}\n"
+            if makepkg -si --noconfirm 2>&1 | tee -a "$LOG_FILE"; then
+                printf "  ${C_FOREST}${I_CHECK} yay installed successfully${C_RESET}\n\n"
+                DEPENDENCIES_INSTALLED[$dep]=0
+                cd .. && rm -rf yay
+                return 0
+            else
+                printf "  ${C_RED}✗ Failed to build yay${C_RESET}\n"
+                printf "  ${C_GRAY_LIGHT}Try manually: cd /tmp/yay && makepkg -si${C_RESET}\n\n"
+                DEPENDENCIES_INSTALLED[$dep]=1
+                return 1
+            fi
+            ;;
+            
+        flatpak)
+            printf "  ${C_GRAY_LIGHT}Installing flatpak...${C_RESET}\n"
+            
+            if sudo pacman -S --noconfirm flatpak 2>&1 | tee -a "$LOG_FILE"; then
+                printf "  ${C_FOREST}${I_CHECK} flatpak installed${C_RESET}\n"
+                printf "  ${C_GRAY_LIGHT}Adding flathub repository...${C_RESET}\n"
+                
+                if flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>&1 | tee -a "$LOG_FILE"; then
+                    printf "  ${C_FOREST}${I_CHECK} flathub repository added${C_RESET}\n\n"
+                    DEPENDENCIES_INSTALLED[$dep]=0
+                    return 0
+                else
+                    printf "  ${C_ORANGE}${I_WARNING} Could not add flathub automatically${C_RESET}\n"
+                    printf "  ${C_GRAY_LIGHT}Run manually: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo${C_RESET}\n\n"
+                    DEPENDENCIES_INSTALLED[$dep]=0  # flatpak sí está instalado
+                    return 0
+                fi
+            else
+                printf "  ${C_RED}✗ Failed to install flatpak${C_RESET}\n\n"
+                DEPENDENCIES_INSTALLED[$dep]=1
+                return 1
+            fi
+            ;;
+            
+        *)
+            printf "  ${C_RED}✗ Unknown dependency: $dep${C_RESET}\n\n"
+            DEPENDENCIES_INSTALLED[$dep]=1
+            return 1
+            ;;
+    esac
+}
+
+check_installed() {
+    local name="${1:-}"
+    local method="${2:-}"
+    
+    [[ -z "$name" ]] && return 1
+    
+    if [[ "${DEMO_MODE:-0}" == "1" ]]; then
+        return 1
+    fi
+    
+    local pkg=$(echo "$name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+    
+    case "$method" in
+        pacman|aur)
+            pacman -Q "$pkg" &>/dev/null || \
+            pacman -Q "${pkg}-bin" &>/dev/null || \
+            pacman -Q "${pkg}-git" &>/dev/null || \
+            pacman -Q "${pkg}-appimage" &>/dev/null
+            ;;
+        flatpak)
+            command_exists flatpak && \
+            flatpak list --app 2>/dev/null | grep -qi "$pkg"
+            ;;
+        *) 
+            return 1 
+            ;;
+    esac
+}
+
+update_cache() {
+    INSTALLED_CACHE=()
+    local i
+    for i in "${!APPS[@]}"; do
+        if check_installed "${APPS[$i]}" "${APP_METHOD[$i]}" 2>/dev/null; then
+            INSTALLED_CACHE[$i]=1
+        else
+            INSTALLED_CACHE[$i]=0
+        fi
+    done
+}
+
+#===============================================================================
+# RENDERIZADO (simplificado para espacio)
+#===============================================================================
+
+draw_interface() {
+    get_terminal_size
+    update_cache
+    clear_screen
+    
+    # Header
+    move_cursor 1 1
+    printf "${C_NAVY}${C_BOLD}%${TERMINAL_WIDTH}s${C_RESET}\n" | tr ' ' '='
+    move_cursor 2 1
+    local title="ARCH LINUX ACADEMIC SOFTWARE REPOSITORY"
+    local padding=$(( (TERMINAL_WIDTH - ${#title}) / 2 ))
+    printf "%${padding}s${C_NAVY}${C_BOLD}${title}${C_RESET}\n" ""
+    move_cursor 3 1
+    printf "${C_GRAY_DARK}%${TERMINAL_WIDTH}s${C_RESET}\n" | tr ' ' '-'
+    
+    # Lista
+    local start=$SCROLL_OFFSET
+    local end=$((SCROLL_OFFSET + VISIBLE_ITEMS))
+    [[ $end -gt $TOTAL_APPS ]] && end=$TOTAL_APPS
+    
+    local line=5
+    move_cursor $line 2
+    printf "${C_GRAY_LIGHT}[Catalog: %d items | Select with SPACE, Install with ENTER]${C_RESET}\n" "$TOTAL_APPS"
+    ((line++))
+    
+    for ((i=start; i<end; i++)); do
+        move_cursor $line 2
+        clear_line
+        
+        local name="${APPS[$i]}"
+        local installed=${INSTALLED_CACHE[$i]:-0}
+        local selected=${SELECTION_STATE[$i]:-0}
+        
+        [[ ${#name} -gt 28 ]] && name="${name:0:26}.."
+        
+        if [[ $i -eq $SELECTED_INDEX ]]; then
+            printf "${C_GOLD}${I_ARROW}${C_RESET} ${BG_SELECT}"
+        else
+            printf "  "
+        fi
+        
+        printf "${C_GRAY}%2d.${C_RESET} " "$((i+1))"
+        
+        if [[ $selected -eq 1 ]]; then
+            printf "${C_GOLD}${C_BOLD}%-28s${C_RESET}" "$name"
+        elif [[ $installed -eq 1 ]]; then
+            printf "${C_FOREST}%-28s${C_RESET}" "$name"
+        else
+            printf "${C_SLATE}%-28s${C_RESET}" "$name"
+        fi
+        
+        printf " ${C_GRAY_LIGHT}[%s]${C_RESET}" "${APP_METHOD[$i]}"
+        
+        printf "  "
+        [[ $selected -eq 1 ]] && printf "${C_GOLD}${I_CHECK}${C_RESET}" || printf " "
+        printf " "
+        [[ $installed -eq 1 ]] && printf "${C_FOREST}${I_BULLET}${C_RESET}" || printf "${C_GRAY}${I_CIRCLE}${C_RESET}"
+        
+        [[ $i -eq $SELECTED_INDEX ]] && printf "${C_RESET}"
+        
+        ((line++))
+    done
+    
+    while [[ $line -lt $((TERMINAL_HEIGHT - 6)) ]]; do
+        move_cursor $line 2
+        clear_line
+        ((line++))
+    done
+    
+    # Preview
+    local idx=$SELECTED_INDEX
+    local y=$((TERMINAL_HEIGHT - 5))
+    
+    move_cursor $y 2
+    printf "${C_NAVY}${U_VR}%$((TERMINAL_WIDTH - 4))s${U_VL}${C_RESET}\n" | tr ' ' "${U_H}"
+    ((y++))
+    move_cursor $y 2
+    printf "${C_NAVY}${U_V}${C_RESET} ${C_ACADEMY}%s${C_RESET} %${C_GRAY_LIGHT}s${C_RESET}" "${APP_CAT[$idx]}" "[${APP_METHOD[$idx]}]"
+    printf "%$((TERMINAL_WIDTH - ${#APP_CAT[$idx]} - 15))s ${C_NAVY}${U_V}${C_RESET}\n" ""
+    ((y++))
+    move_cursor $y 2
+    printf "${C_NAVY}${U_V}${C_RESET} ${C_SLATE}%.$(($TERMINAL_WIDTH - 6))s${C_RESET}" "${APP_DESC[$idx]}"
+    printf "%$((TERMINAL_WIDTH - ${#APP_DESC[$idx]} - 6))s ${C_NAVY}${U_V}${C_RESET}\n" ""
+    ((y++))
+    move_cursor $y 2
+    printf "${C_NAVY}${U_VR}%$((TERMINAL_WIDTH - 4))s${U_VL}${C_RESET}\n" | tr ' ' "${U_H}"
+    
+    # Status
+    y=$((TERMINAL_HEIGHT - 1))
+    move_cursor $y 2
+    
+    local count=0
+    for _ in "${!SELECTION_STATE[@]}"; do ((count++)); done
+    
+    if $IS_INSTALLING; then
+        printf "${C_GOLD}${I_HOURGLASS} Installing %d package(s)...${C_RESET}" "$count"
+    else
+        printf "${C_GRAY_LIGHT}[%d/%d]${C_RESET} " "$((SELECTED_INDEX + 1))" "$TOTAL_APPS"
+        if [[ $count -gt 0 ]]; then
+            printf "${C_GOLD}%d selected - Press ENTER to install${C_RESET}" "$count"
+        else
+            printf "${C_GRAY}SPACE:select  ENTER:install  q:quit${C_RESET}"
+        fi
+    fi
+    
+    NEEDS_REDRAW=false
+}
+
+#===============================================================================
+# NAVEGACIÓN
+#===============================================================================
+
+navigate_up() {
+    $IS_INSTALLING && return
+    [[ $SELECTED_INDEX -gt 0 ]] || return
+    ((SELECTED_INDEX--))
+    [[ $SELECTED_INDEX -lt $SCROLL_OFFSET ]] && SCROLL_OFFSET=$SELECTED_INDEX
+    [[ $SCROLL_OFFSET -lt 0 ]] && SCROLL_OFFSET=0
+    NEEDS_REDRAW=true
+}
+
+navigate_down() {
+    $IS_INSTALLING && return
+    [[ $SELECTED_INDEX -lt $((TOTAL_APPS - 1)) ]] || return
+    ((SELECTED_INDEX++))
+    local max_offset=$((TOTAL_APPS - VISIBLE_ITEMS))
+    [[ $max_offset -lt 0 ]] && max_offset=0
+    [[ $SELECTED_INDEX -ge $((SCROLL_OFFSET + VISIBLE_ITEMS)) ]] && SCROLL_OFFSET=$((SELECTED_INDEX - VISIBLE_ITEMS + 1))
+    [[ $SCROLL_OFFSET -gt $max_offset ]] && SCROLL_OFFSET=$max_offset
+    NEEDS_REDRAW=true
+}
+
+toggle_item() {
+    $IS_INSTALLING && return
+    if [[ -n "${SELECTION_STATE[$SELECTED_INDEX]:-}" ]]; then
+        unset SELECTION_STATE[$SELECTED_INDEX]
+    else
+        SELECTION_STATE[$SELECTED_INDEX]=1
+    fi
+    NEEDS_REDRAW=true
+}
+
+select_all() {
+    $IS_INSTALLING && return
+    local i
+    for i in "${!APPS[@]}"; do
+        [[ ${INSTALLED_CACHE[$i]:-0} -eq 0 ]] && SELECTION_STATE[$i]=1
+    done
+    NEEDS_REDRAW=true
+}
+
+clear_all() {
+    $IS_INSTALLING && return
+    SELECTION_STATE=()
+    NEEDS_REDRAW=true
+}
+
+#===============================================================================
+# INSTALACIÓN CON CONFIRMACIÓN
+#===============================================================================
+
+install_selection() {
+    local targets=()
+    local i
+    
+    for i in "${!SELECTION_STATE[@]}"; do
+        [[ ${INSTALLED_CACHE[$i]:-0} -eq 0 ]] && targets+=("$i")
+    done
+    
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        [[ ${INSTALLED_CACHE[$SELECTED_INDEX]:-0} -eq 0 ]] && targets+=("$SELECTED_INDEX")
+    fi
+    
+    [[ ${#targets[@]} -eq 0 ]] && return
+    
+    IS_INSTALLING=true
+    NEEDS_REDRAW=true
+    
+    clear_screen
+    show_cursor
+    
+    printf "\n${C_NAVY}%${TERMINAL_WIDTH}s${C_RESET}\n\n" | tr ' ' '='
+    printf "  ${C_GOLD}${C_BOLD}INSTALLATION PROCESS${C_RESET}\n"
+    printf "  ${C_GRAY_LIGHT}%d package(s) queued${C_RESET}\n\n" "${#targets[@]}"
+    printf "  ${C_NAVY}%$((TERMINAL_WIDTH - 4))s${C_RESET}\n\n" | tr ' ' '-'
+    
+    local current=0
+    local total=${#targets[@]}
+    local idx
+    
+    for idx in "${targets[@]}"; do
+        ((current++))
+        local app_name="${APPS[$idx]}"
+        local app_cmd="${APP_CMD[$idx]}"
+        local app_method="${APP_METHOD[$idx]}"
+        local app_deps="${APP_DEPS[$idx]:-}"
+        
+        printf "  ${C_ACADEMY}[%d/%d]${C_RESET} ${C_BOLD}%s${C_RESET}\n" "$current" "$total" "$app_name"
+        printf "  ${C_GRAY_LIGHT}Method: %s${C_RESET}\n" "$app_method"
+        
+        # CONFIRMAR DEPENDENCIAS
+        if [[ -n "$app_deps" ]]; then
+            printf "  ${C_GRAY_LIGHT}Required: %s${C_RESET}\n" "$app_deps"
+            
+            for dep in $app_deps; do
+                if ! ensure_dependency "$dep"; then
+                    printf "  ${C_ORANGE}${I_WARNING} Cannot install without %s${C_RESET}\n\n" "$dep"
+                    printf "  ${C_NAVY}%$((TERMINAL_WIDTH - 4))s${C_RESET}\n\n" | tr ' ' '-'
+                    continue 2
+                fi
+            done
+        fi
+        
+        printf "  ${C_GRAY_LIGHT}Command: %s${C_RESET}\n\n" "$app_cmd"
+        
+        # EJECUTAR
+        if [[ "${DEMO_MODE:-0}" == "1" ]]; then
+            local spin_idx=0
+            for ((prog=0; prog<=100; prog+=25)); do
+                move_cursor $((TERMINAL_HEIGHT - 4)) 10
+                printf "${C_GOLD}${I_SPINNER[$((spin_idx % 4))]}${C_RESET} %d%%   " "$prog"
+                ((spin_idx++))
+                sleep 0.3
+            done
+            printf "\n\n  ${C_FOREST}${I_CHECK} Simulated${C_RESET}\n\n"
+            INSTALLED_CACHE[$idx]=1
+        else
+            local tmp_log="${CONFIG_DIR}/tmp_$$.log"
+            
+            # Verificar si el comando anterior dejó yay roto (libalpm)
+            if [[ "$app_method" == "aur" ]] && command_exists yay; then
+                if ! yay --version &>/dev/null; then
+                    printf "  ${C_ORANGE}${I_WARNING} yay appears broken (missing libalpm)${C_RESET}\n"
+                    printf "  ${C_GRAY_LIGHT}Attempting to rebuild yay...${C_RESET}\n"
+                    
+                    if ask_user "Rebuild yay now? [Y/n]" "y"; then
+                        sudo pacman -S --noconfirm yay 2>/dev/null || {
+                            cd /tmp && rm -rf yay && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm
+                        }
+                    fi
+                fi
+            fi
+            
+            eval "$app_cmd" > "$tmp_log" 2>&1 &
+            local pid=$!
+            
+            local spin_idx=0
+            while kill -0 $pid 2>/dev/null; do
+                move_cursor $((TERMINAL_HEIGHT - 4)) 10
+                printf "${C_GOLD}${I_SPINNER[$((spin_idx % 4))]}${C_RESET} Installing..."
+                ((spin_idx++))
+                sleep 0.3
             done
             
-            # Imprimir línea
-            printf "%-*s" "$content_width" "$line"
-            clear_to_end_of_line
+            wait $pid
+            local exit_code=$?
+            printf "\n\n"
+            
+            if [[ $exit_code -eq 0 ]]; then
+                printf "  ${C_FOREST}${I_CHECK} Success${C_RESET}\n\n"
+                INSTALLED_CACHE[$idx]=1
+            else
+                printf "  ${C_BURGUNDY}✗ Failed (code: %d)${C_RESET}\n\n" "$exit_code"
+                [[ -f "$tmp_log" ]] && tail -n 2 "$tmp_log" | while read -r line; do
+                    printf "    ${C_GRAY}> %s${C_RESET}\n" "$line"
+                done
+                printf "\n"
+            fi
+            
+            rm -f "$tmp_log"
         fi
         
-        ((line_num++))
-        ((current_y++))
+        printf "  ${C_NAVY}%$((TERMINAL_WIDTH - 4))s${C_RESET}\n\n" | tr ' ' '-'
     done
     
-    # Limpiar líneas restantes de la descripción
-    while [ $line_num -lt $max_desc_lines ]; do
-        move_cursor $current_y $content_x
-        printf "%*s" "$content_width" ""
-        clear_to_end_of_line
-        ((line_num++))
-        ((current_y++))
-    done
+    SELECTION_STATE=()
+    SKIP_ALL_DEPENDENCIES=false
+    AUTO_INSTALL_DEPENDENCIES=false
     
-    # ----------------------------------------
-    # Estado de instalación (al final)
-    # ----------------------------------------
-    local status_y=$((start_y + height - 1))
-    move_cursor $status_y $content_x
-    
-    if [ ${INSTALLED_STATUS[$SELECTED_INDEX]} -eq 1 ]; then
-        printf "${BG_VIOLET_DARK}${GREEN} ${CHECK} INSTALADO ${RESET}"
-    else
-        printf "${BG_VIOLET_DARK}${ORANGE} ${CIRCLE} NO INSTALADO ${RESET}"
-    fi
-}
-
-# Dibuja la barra de estado inferior
-function draw_status_bar() {
-    local y=$((TERMINAL_HEIGHT - 1))
-    
-    # Contar seleccionados
-    local selected_count=0
-    local index
-    
-    for index in $(seq 1 $TOTAL_APPS); do
-        if [ ${SELECTED_TO_INSTALL[$index]:-0} -eq 1 ]; then
-            ((selected_count++))
-        fi
-    done
-    
-    # Limpiar línea completa
-    move_cursor $y 1
-    clear_entire_line
-    
-    # Sección izquierda: posición actual
-    printf "${BG_VIOLET_DARK}${WHITE} %d/%d ${RESET}" "$SELECTED_INDEX" "$TOTAL_APPS"
-    
-    # Separador
-    printf "${VIOLET} │ ${RESET}"
-    
-    # Contador de seleccionados
-    printf "${MAGENTA_GLOW}%d seleccionados${RESET}" "$selected_count"
-    
-    # Calcular espacio para alinear ayuda a la derecha
-    local help_text="a:todos │ c:limpiar │ Enter:instalar │ q:salir"
-    local left_part=" $SELECTED_INDEX/$TOTAL_APPS  │ $selected_count seleccionados "
-    local padding=$((TERMINAL_WIDTH - ${#left_part} - ${#help_text} - 2))
-    
-    # Rellenar espacio
-    if [ $padding -gt 0 ]; then
-        printf "%*s" $padding ""
-    fi
-    
-    # Texto de ayuda
-    printf "${GRAY}%s${RESET}" "$help_text"
-    
-    # Asegurar limpieza del final
-    clear_to_end_of_line
-}
-
-# ============================================
-# FUNCIONES DE INSTALACIÓN
-# ============================================
-
-# Instala un paquete usando pacman
-function install_pacman() {
-    local package="$1"
-    
-    echo ""
-    echo -e "${CYAN}▶ Instalando ${BOLD}$package${RESET} ${CYAN}con pacman...${RESET}"
-    echo ""
-    
-    sudo pacman -S --noconfirm --needed "$package"
-    
-    return $?
-}
-
-# Instala un paquete desde AUR usando yay
-function install_yay() {
-    local package="$1"
-    
-    # Verificar que yay esté instalado
-    if ! command -v yay &>/dev/null; then
-        echo ""
-        echo -e "${ORANGE}⚠ yay no encontrado. Instalando primero...${RESET}"
-        echo ""
-        
-        install_yay_helper
-    fi
-    
-    echo ""
-    echo -e "${CYAN}▶ Instalando ${BOLD}$package${RESET} ${CYAN}desde AUR...${RESET}"
-    echo ""
-    
-    yay -S --noconfirm "$package"
-    
-    return $?
-}
-
-# Instala yay (helper de AUR)
-function install_yay_helper() {
-    echo -e "${CYAN}▶ Instalando dependencias...${RESET}"
-    sudo pacman -S --needed --noconfirm git base-devel
-    
-    echo -e "${CYAN}▶ Clonando repositorio de yay...${RESET}"
-    cd /tmp || return 1
-    rm -rf yay 2>/dev/null
-    git clone https://aur.archlinux.org/yay.git
-    
-    echo -e "${CYAN}▶ Compilando e instalando yay...${RESET}"
-    cd yay || return 1
-    makepkg -si --noconfirm
-    
-    cd ..
-    rm -rf yay
-    
-    echo -e "${GREEN}✓ yay instalado correctamente${RESET}"
-    echo ""
-}
-
-# Instala una aplicación individual
-function install_single_app() {
-    local index="$1"
-    local app_name="${APPS[$index]}"
-    
-    # Limpiar pantalla para mostrar progreso
-    clear_screen
-    show_cursor
-    
-    # Encabezado de instalación
-    echo ""
-    echo -e "${VIOLET}╔══════════════════════════════════════════════════════════════╗${RESET}"
-    printf "${VIOLET}║${RESET}  ${GOLD}${BOLD}Instalando:${RESET} %-48s ${VIOLET}║${RESET}\n" "$app_name"
-    echo -e "${VIOLET}╚══════════════════════════════════════════════════════════════╝${RESET}"
-    echo ""
-    
-    # Ejecutar instalación
-    eval "${INSTALL_CMDS[$index]}"
-    local result=$?
-    
-    echo ""
-    
-    # Mostrar resultado
-    if [ $result -eq 0 ]; then
-        INSTALLED_STATUS[$index]=1
-        echo -e "${GREEN}${CHECK} ${BOLD}$app_name${RESET}${GREEN} instalado correctamente${RESET}"
-    else
-        echo -e "${RED}✗ Error instalando $app_name${RESET}"
-    fi
-    
-    echo ""
-    read -rp "$(echo -e "${VIOLET}Presiona Enter para continuar...${RESET}")"
+    printf "  ${C_FOREST}${C_BOLD}Complete${C_RESET}\n\n"
+    printf "  ${C_GRAY_LIGHT}Press any key...${C_RESET}"
+    read -n 1 -s
     
     hide_cursor
+    IS_INSTALLING=false
+    NEEDS_REDRAW=true
 }
 
-# Instala múltiples aplicaciones seleccionadas
-function install_batch_apps() {
-    local to_install=()
-    local index
-    
-    # Recopilar índices seleccionados que no estén instalados
-    for index in $(seq 1 $TOTAL_APPS); do
-        if [ ${SELECTED_TO_INSTALL[$index]:-0} -eq 1 ] && \
-           [ ${INSTALLED_STATUS[$index]} -eq 0 ]; then
-            to_install+=($index)
-        fi
-    done
-    
-    # Si no hay nada que instalar, salir
-    if [ ${#to_install[@]} -eq 0 ]; then
-        return
+#===============================================================================
+# MAIN
+#===============================================================================
+
+main() {
+    if [[ "${DEMO_MODE:-0}" != "1" ]] && [[ ! -f /etc/arch-release ]]; then
+        printf "\n${C_BURGUNDY}Error: Requires Arch Linux${C_RESET}\n"
+        printf "Use: ${C_GOLD}DEMO_MODE=1 ./installer.sh${C_RESET}\n\n"
+        exit 1
     fi
     
-    # Limpiar pantalla
-    clear_screen
-    show_cursor
-    
-    # Encabezado
-    echo ""
-    echo -e "${VIOLET}╔══════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${VIOLET}║${RESET}           ${GOLD}${BOLD}INSTALACIÓN MÚLTIPLE${RESET}                               ${VIOLET}║${RESET}"
-    echo -e "${VIOLET}╚══════════════════════════════════════════════════════════════╝${RESET}"
-    echo ""
-    
-    # Instalar cada aplicación
-    local idx
-    for idx in "${to_install[@]}"; do
-        printf "${CYAN}▶ ${BOLD}%s${RESET}\n" "${APPS[$idx]}"
-        echo ""
-        
-        eval "${INSTALL_CMDS[$idx]}"
-        
-        if [ $? -eq 0 ]; then
-            INSTALLED_STATUS[$idx]=1
-            echo -e "${GREEN}  ✓ Completado${RESET}"
-        else
-            echo -e "${RED}  ✗ Fallido${RESET}"
-        fi
-        
-        echo ""
-    done
-    
-    # Resumen final
-    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${GREEN}║${RESET}           ${BOLD}INSTALACIÓN FINALIZADA${RESET}                            ${GREEN}║${RESET}"
-    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${RESET}"
-    
-    # Limpiar selecciones
-    for index in $(seq 1 $TOTAL_APPS); do
-        SELECTED_TO_INSTALL[$index]=0
-    done
-    
-    echo ""
-    read -rp "$(echo -e "${VIOLET}Presiona Enter para continuar...${RESET}")"
-    
+    trap cleanup EXIT INT TERM
     hide_cursor
-}
-
-# ============================================
-# BUCLE PRINCIPAL
-# ============================================
-
-function main_loop() {
-    local key
-    local rest
+    stty -echo -icanon min 1 time 0 2>/dev/null || true
     
-    # Bucle infinito hasta que se presione 'q'
+    draw_interface
+    
     while true; do
-        # Actualizar dimensiones por si se redimensionó la terminal
-        update_terminal_size
+        if $NEEDS_REDRAW; then
+            draw_interface
+        fi
         
-        # Redibujar toda la interfaz
-        draw_header
-        draw_left_panel
-        draw_right_panel
-        draw_status_bar
-        
-        # Leer tecla presionada
-        IFS= read -rs -n1 key
-        
-        case "$key" in
-            # ========================================
-            # TECLAS DE NAVEGACIÓN (flechas)
-            # ========================================
-            $'\x1b')
-                # Leer secuencia de escape completa
-                read -rs -n2 rest
-                
-                case "$rest" in
-                    '[A')  # Flecha arriba
-                        if [ $SELECTED_INDEX -gt 1 ]; then
-                            ((SELECTED_INDEX--))
-                            
-                            # Ajustar scroll si es necesario
-                            if [ $SELECTED_INDEX -lt $SCROLL_OFFSET ]; then
-                                ((SCROLL_OFFSET--))
-                            fi
-                        fi
-                        ;;
-                        
-                    '[B')  # Flecha abajo
-                        if [ $SELECTED_INDEX -lt $TOTAL_APPS ]; then
-                            ((SELECTED_INDEX++))
-                            
-                            # Ajustar scroll si es necesario
-                            if [ $SELECTED_INDEX -ge $((SCROLL_OFFSET + VISIBLE_ITEMS)) ]; then
-                                ((SCROLL_OFFSET++))
-                            fi
-                        fi
-                        ;;
-                esac
-                ;;
+        local key=""
+        if IFS= read -rs -t 0.5 -n1 key 2>/dev/null; then
+            if [[ "$key" == $'\x1b' ]]; then
+                local rest=""
+                IFS= read -rs -t 0.05 -n2 rest 2>/dev/null || true
+                key+="$rest"
+            fi
             
-            # ========================================
-            # ESPACIO: Toggle selección
-            # ========================================
-            ' ')
-                if [ ${SELECTED_TO_INSTALL[$SELECTED_INDEX]:-0} -eq 1 ]; then
-                    SELECTED_TO_INSTALL[$SELECTED_INDEX]=0
-                else
-                    SELECTED_TO_INSTALL[$SELECTED_INDEX]=1
-                fi
-                ;;
-            
-            # ========================================
-            # ENTER: Instalar
-            # ========================================
-            '')
-                local has_selection=0
-                local idx
-                
-                # Verificar si hay selecciones batch
-                for idx in $(seq 1 $TOTAL_APPS); do
-                    if [ ${SELECTED_TO_INSTALL[$idx]:-0} -eq 1 ]; then
-                        has_selection=1
-                        break
-                    fi
-                done
-                
-                # Instalar según el modo
-                if [ $has_selection -eq 1 ]; then
-                    install_batch_apps
-                else
-                    install_single_app $SELECTED_INDEX
-                fi
-                
-                # Limpiar pantalla al volver
-                clear_screen
-                ;;
-            
-            # ========================================
-            # 'A': Seleccionar todos
-            # ========================================
-            'a'|'A')
-                local idx
-                for idx in $(seq 1 $TOTAL_APPS); do
-                    if [ ${INSTALLED_STATUS[$idx]} -eq 0 ]; then
-                        SELECTED_TO_INSTALL[$idx]=1
-                    fi
-                done
-                ;;
-            
-            # ========================================
-            # 'C': Limpiar selección
-            # ========================================
-            'c'|'C')
-                local idx
-                for idx in $(seq 1 $TOTAL_APPS); do
-                    SELECTED_TO_INSTALL[$idx]=0
-                done
-                ;;
-            
-            # ========================================
-            # 'Q': Salir
-            # ========================================
-            'q'|'Q')
-                break
-                ;;
-        esac
+            case "$key" in
+                $'\x1b[A'|k|K) navigate_up ;;
+                $'\x1b[B'|j|J) navigate_down ;;
+                ' ') toggle_item ;;
+                $'\n'|$'\r'|"") install_selection ;;
+                a|A) select_all ;;
+                c|C) clear_all ;;
+                q|Q|$'\x03') break ;;
+            esac
+        fi
     done
+    
+    cleanup
+    clear_screen
+    printf "\n${C_NAVY}%${TERMINAL_WIDTH}s${C_RESET}\n" | tr ' ' '-'
+    printf "${C_GRAY_LIGHT}  Academic Software Installer${C_RESET}\n"
+    printf "${C_NAVY}%${TERMINAL_WIDTH}s${C_RESET}\n\n" | tr ' ' '-'
 }
 
-# ============================================
-# FUNCIÓN PRINCIPAL
-# ============================================
-
-function main() {
-    # Inicializar datos
-    initialize_data
-    
-    # Configurar terminal
-    update_terminal_size
-    hide_cursor
-    clear_screen
-    
-    # Ejecutar bucle principal
-    main_loop
-    
-    # Restaurar terminal al salir
-    show_cursor
-    clear_screen
-    
-    # Mensaje de despedida
-    echo ""
-    echo -e "${VIOLET}✨ Instalador finalizado${RESET}"
-    echo ""
-}
-
-# ============================================
-# MANEJO DE SEÑALES
-# ============================================
-
-# Restaurar cursor y limpiar pantalla al salir
-trap 'show_cursor; clear; exit 0' INT TERM EXIT
-
-# ============================================
-# INICIO DEL PROGRAMA
-# ============================================
-
-main
+main "$@"
