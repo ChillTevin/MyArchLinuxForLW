@@ -1,0 +1,21 @@
+name: "SSHX Interactive Debug"
+
+on:
+  workflow_dispatch: # Permite activarlo manualmente desde la pestaña "Actions"
+
+jobs:
+  sshx_access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "🚀 Desplegando Entorno Vanta-Violet"
+        run: |
+          echo -e "\033[38;5;93m┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\033[0m"
+          echo -e "\033[38;5;141m┃   INICIANDO SESIÓN INTERACTIVA SSHX                ┃\033[0m"
+          echo -e "\033[38;5;93m┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\033[0m"
+
+      - name: "⚡ Activar SSHX Terminal"
+        run: |
+          # Instalamos y corremos sshx
+          # Usamos 'timeout' para que no corra infinitamente (ej. 2 horas máx)
+          # O simplemente lo dejamos correr hasta que tú lo cierres
+          curl -sSf https://sshx.io/get | sh -s run
