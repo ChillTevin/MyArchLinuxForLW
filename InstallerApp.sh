@@ -42,7 +42,7 @@ APPS=(
     "Brave"       "Navegador Privado | brave.com"           OFF "yay -S --noconfirm brave-bin"
     "KDEConnect"  "Sync Android/iOS | kdeconnect.kde.org"   OFF "sudo pacman -S --noconfirm kdeconnect"
     "TimeShift"   "Backups Sistema | github.com/timeshift"  OFF "sudo pacman -S --noconfirm timeshift"
-    "WebCatalog"  "Webs a Apps | webcatalog.io"             OFF "yay -S --noconfirm webcatalog"
+    "WebCatalog"  "Webs a Apps | webcatalog.io"             OFF "yay -S --noconfirm webcatalog-bin"
     "Flatpak"     "Repo Universal | flatpak.org"            OFF "sudo pacman -S --noconfirm flatpak && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
 )
 
