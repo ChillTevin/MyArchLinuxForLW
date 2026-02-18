@@ -50,7 +50,11 @@ TOMEX is intelligent. Before any installation, it performs a **Pre-Flight Check*
 3. It elevates privileges using `sudo` only when strictly necessary.
 
 ---
+##🧪 Deep Experimentation & Future ProjectsBeyond being a simple installer, this repo is a playground for Linux Ricing.I highly encourage users to experiment further! You can integrate other projects like custom Window Managers (Hyprland, Sway), specialized development environments, or security tools. This project is a gateway to understanding how Arch Linux scales from a "terminal-only" machine to a beautiful, modern workstation.
 
+<div align="center"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRxRKdAJb0FzHGvQwjHuZBpUTvGHLFzKn_jIg&s" alt="Minimalist Setup"></div>📦 Software Selection (The "Study" Pack)ApplicationCategoryBenefit<font color="#9333ea">Obsidian</font>📝 ProductivityBest-in-class local Markdown notes.<font color="#9333ea">OnlyOffice</font>📑 OfficeFull compatibility with MS Office formats.<font color="#9333ea">Brave Browser</font>🌐 WebHigh privacy and low RAM usage.<font color="#1793d1">HyDE Project</font>🎨 AestheticsHigh-end visual configuration (Rice).<div align="center"><img src="https://www.google.com/url?sa=E&source=gmail&q=https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%"><p><i>"A minimalist system isn't the one with the fewest things, but the one with exactly what you need."</i></p>ChillTevin | 2026</div>
+
+---
 ## 🛠️ Quick Start Guide
 
 To unleash the magic of **TOMEX**, simply run this command in your Arch Linux terminal:
