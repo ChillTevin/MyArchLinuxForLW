@@ -1,21 +1,32 @@
-name: "SSHX Interactive Debug"
+name: "Arch Power Edition - Interactive Session"
 
 on:
-  workflow_dispatch: # Permite activarlo manualmente desde la pestaña "Actions"
+  workflow_dispatch:
 
 jobs:
-  sshx_access:
+  custom_arch:
     runs-on: ubuntu-latest
-    steps:
-      - name: "🚀 Desplegando Entorno Vanta-Violet"
-        run: |
-          echo -e "\033[38;5;93m┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\033[0m"
-          echo -e "\033[38;5;141m┃   INICIANDO SESIÓN INTERACTIVA SSHX                ┃\033[0m"
-          echo -e "\033[38;5;93m┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\033[0m"
+    
+    # Configuramos tu imagen personalizada
+    container:
+      image: tomillo037/tomexarch:kde_v.1.5_power_edition_lite
+      options: --privileged # Otorga permisos de root reales al contenedor
+    
+    permissions:
+      contents: write
 
-      - name: "⚡ Activar SSHX Terminal"
+    steps:
+      - name: "📂 Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "🛡️ Git Ownership Fix"
         run: |
-          # Instalamos y corremos sshx
-          # Usamos 'timeout' para que no corra infinitamente (ej. 2 horas máx)
-          # O simplemente lo dejamos correr hasta que tú lo cierres
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.name "Tomillo037"
+          git config --global user.email "tu-email@ejemplo.com"
+
+      - name: "⚡ Iniciar SSHX (Vanta-Violet Mode)"
+        run: |
+          echo -e "\033[38;5;93m[!] CARGANDO: tomillo037/tomexarch... [OK]\033[0m"
+          echo -e "\033[38;5;141m[!] MODO PRIVILEGIADO ACTIVADO\033[0m"
           curl -sSf https://sshx.io/get | sh -s run
