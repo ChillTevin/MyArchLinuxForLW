@@ -1,15 +1,20 @@
 #!/bin/bash
 
-# --- Colores Vanta-Violet ---
+# --- Configuración de Colores ---
 VIOLET='\033[38;5;93m'
-V_BRIGHT='\033[38;5;141m'
 CYAN='\033[38;5;51m'
 GOLD='\033[38;5;220m'
 WHITE='\033[38;5;255m'
 RED='\033[38;5;196m'
+GREEN='\033[38;5;82m'
 BG_SELECT='\033[48;5;236m'
 RESET='\033[0m'
 BOLD='\033[1m'
+
+# 1. INSTALACIÓN DE DEPENDENCIAS AL INICIAR
+clear
+echo -e "${VIOLET}Checking dependencies...${RESET}"
+sudo pacman -S --needed --noconfirm git base-devel
 
 # Asegurar directorio de trabajo
 cd "$(dirname "$0")"
@@ -24,21 +29,40 @@ rainbow_exit() {
     done
     echo -e "${RESET}\n"
     tput cnorm
-    sleep 1.5
+    sleep 1.2
     exit 0
+}
+
+# --- FUNCIÓN PARA EJECUTAR CON LÓGICA SMART ---
+# Recibe 1: Nombre del archivo, 2: URL de descarga
+run_smart() {
+    local FILE=$1
+    local URL=$2
+
+    if [ -f "$FILE" ]; then
+        echo -e "${GREEN}✔ Archivo $FILE detectado localmente. Iniciando...${RESET}"
+        chmod +x "$FILE" && ./"$FILE"
+    else
+        echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
+        wget -q --show-progress "$URL" -O "$FILE"
+        chmod +x "$FILE" && ./"$FILE"
+    fi
+    echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver a TOMEX...${RESET}"
+    read
 }
 
 # --- SUBMENÚ: INSTALLERS ---
 submenu_installers() {
-    local SUB_OPCIONES=("InstallerApp.sh (GUI)" "InstallerAppCLI.sh (CLI)" "<-- Volver")
+    local SUB_OPCIONES=("InstallerApp.sh (GUI Mode)" "InstallerAppCLI.sh (CLI Mode)" "<-- Volver")
     local SUB_CURSOR=0
     local SUB_TOTAL=${#SUB_OPCIONES[@]}
+    local RAW_URL="https://raw.githubusercontent.com/ChillTevin/MyArchLinuxForLW/refs/heads/main"
 
     while true; do
         clear
         echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-        echo -e "┃                ${WHITE}T  O  M  E  X   V 9.1${VIOLET}                 ┃"
-        echo -e "┃                ${CYAN}SECCIÓN: INSTALLERS${VIOLET}                 ┃"
+        echo -e "┃                ${WHITE}T  O  M  E  X   V 9.4${VIOLET}                 ┃"
+        echo -e "┃                ${CYAN}SMART-LOGIC SECTION${VIOLET}                 ┃"
         echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
         for i in "${!SUB_OPCIONES[@]}"; do
@@ -59,18 +83,8 @@ submenu_installers() {
                 esac ;;
             "") 
                 case $SUB_CURSOR in
-                    0)
-                        if [ -f "InstallerApp.sh" ]; then
-                            chmod +x InstallerApp.sh && ./InstallerApp.sh
-                        else
-                            echo -e "${RED}✘ InstallerApp.sh no encontrado${RESET}"; sleep 2
-                        fi ;;
-                    1)
-                        if [ -f "InstallerAppCLI.sh" ]; then
-                            chmod +x InstallerAppCLI.sh && ./InstallerAppCLI.sh
-                        else
-                            echo -e "${RED}✘ InstallerAppCLI.sh no encontrado${RESET}"; sleep 2
-                        fi ;;
+                    0) run_smart "InstallerApp.sh" "$RAW_URL/InstallerApp.sh" ;;
+                    1) run_smart "InstallerAppCLI.sh" "$RAW_URL/InstallerAppCLI.sh" ;;
                     2) return ;;
                 esac ;;
         esac
@@ -86,7 +100,7 @@ tput civis
 while true; do
     clear
     echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃                ${WHITE}T  O  M  E  X   V 9.1${VIOLET}                 ┃"
+    echo -e "┃                ${WHITE}T  O  M  E  X   V 9.4${VIOLET}                 ┃"
     echo -e "┃          ${CYAN}Kinetic Navigation System${VIOLET}             ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -110,9 +124,13 @@ while true; do
             case $CURSOR in
                 0) submenu_installers ;;
                 1)
-                    echo -e "${CYAN}➜ Clonando HyDE...${RESET}"
-                    sudo git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
+                    echo -e "${CYAN}➜ Verificando HyDE Project...${RESET}"
+                    if [ ! -d "$HOME/HyDE" ]; then
+                        sudo git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
+                    fi
                     cd ~/HyDE/Scripts && chmod +x install.sh && ./install.sh
+                    echo -e "\n${GOLD}➜ HyDE finalizado. Presiona ENTER para volver...${RESET}"
+                    read
                     cd - > /dev/null ;;
                 2) rainbow_exit ;;
             esac ;;
