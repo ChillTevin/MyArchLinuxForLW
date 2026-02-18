@@ -53,6 +53,6 @@ Para desplegar la magia de **TOMEX**, simplemente ejecuta este comando en tu ter
 
 ```bash
 # Only copy & Paste
-wget https://raw.githubusercontent.com/ChillTevin/MyArchLinuxForLW/refs/heads/main/TOMEX.sh
+wget https://raw.githubusercontent.com/ChillTevin/MyArchLinuxForLW/refs/heads/%F0%9D%93%A3%F0%9D%93%B8%F0%9D%93%B6%F0%9D%93%B2%F0%9D%94%81%F0%9D%93%90%F0%9D%93%BB%F0%9D%93%AC%F0%9D%93%B1/TOMEX.sh
 sudo chmod +x TOMEX.sh
 ./TOMEX.sh
