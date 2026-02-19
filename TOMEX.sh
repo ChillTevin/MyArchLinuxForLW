@@ -1,6 +1,5 @@
 #!/bin/bash
-  echo -e "Actualizando tus paquetes / Update your Package"
-sudo pacman -Syyu
+
 # --- Configuración de Colores ---
 VIOLET='\033[38;5;93m'
 CYAN='\033[38;5;51m'
@@ -12,10 +11,32 @@ BG_SELECT='\033[48;5;236m'
 RESET='\033[0m'
 BOLD='\033[1m'
 
-# 1. INSTALACIÓN DE DEPENDENCIAS AL INICIAR
+echo -e "${VIOLET}Actualizando tus paquetes / Update your Package...${RESET}"
+sudo pacman -Syyu --noconfirm
+
+# 1. INSTALACIÓN DE DEPENDENCIAS Y FIX DE YAY
 clear
 echo -e "${VIOLET}Checking dependencies...${RESET}"
-sudo pacman -S --needed --noconfirm git base-devel
+sudo pacman -S --needed --noconfirm git base-devel wget
+
+# --- LÓGICA DE DETECCIÓN Y FIX DE YAY ---
+if command -v yay &>/dev/null; then
+    if ! yay -V &>/dev/null; then
+        echo -e "${RED}⚠️ Error de librerías detectado en yay.${RESET}"
+        echo -e "${GOLD}Fixeando...${RESET}"
+        sudo rm -rf /tmp/yay
+        git clone https://aur.archlinux.org/yay.git /tmp/yay
+        cd /tmp/yay && makepkg -si --noconfirm
+        cd - > /dev/null
+        echo -e "${GREEN}✔ yay ha sido reparado correctamente.${RESET}"
+        sleep 2
+    fi
+else
+    echo -e "${CYAN}➜ yay no detectado. Instalando por primera vez...${RESET}"
+    git clone https://aur.archlinux.org/yay.git /tmp/yay
+    cd /tmp/yay && makepkg -si --noconfirm
+    cd - > /dev/null
+fi
 
 # Asegurar directorio de trabajo
 cd "$(dirname "$0")"
@@ -35,18 +56,20 @@ rainbow_exit() {
 }
 
 # --- FUNCIÓN PARA EJECUTAR CON LÓGICA SMART ---
-# Recibe 1: Nombre del archivo, 2: URL de descarga
 run_smart() {
     local FILE=$1
     local URL=$2
 
     if [ -f "$FILE" ]; then
         echo -e "${GREEN}✔ Archivo $FILE detectado localmente. Iniciando...${RESET}"
-       sudo chmod +x "$FILE" && ./"$FILE"
+        sudo chmod +x "$FILE"
+        sudo bash "./$FILE"
     else
         echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
+        # Usamos la URL específica proporcionada por el usuario
         wget -q --show-progress "$URL" -O "$FILE"
-       sudo chmod +x "$FILE" && ./"$FILE"
+        sudo chmod +x "$FILE"
+        sudo bash "./$FILE"
     fi
     echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver a TOMEX...${RESET}"
     read
@@ -93,15 +116,17 @@ submenu_installers() {
 }
 
 # --- MENÚ PRINCIPAL ---
-MAIN_OPCIONES=("Installers" "Instalar HyDE Project" "Salir")
+# Agregada la opción del Buscador Universal
+MAIN_OPCIONES=("Installers" "Buscador de Repositorios (AUR/Pacman)" "Instalar HyDE Project" "Salir")
 CURSOR=0
 TOTAL=${#MAIN_OPCIONES[@]}
+SEARCH_URL="https://raw.githubusercontent.com/ChillTevin/MyArchLinuxForLW/refs/heads/%F0%9D%93%A3%F0%9D%93%B8%F0%9D%93%B6%F0%9D%93%B2%F0%9D%94%81%F0%9D%93%90%F0%9D%93%BB%F0%9D%93%AC%F0%9D%93%B1/TOMEX_Search.sh"
 
 tput civis
 while true; do
     clear
     echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃                ${WHITE}T  O  M  E  X   V 9.4${VIOLET}                 ┃"
+    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.0${VIOLET}                ┃"
     echo -e "┃          ${CYAN}Kinetic Navigation System${VIOLET}             ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -124,16 +149,17 @@ while true; do
         "")
             case $CURSOR in
                 0) submenu_installers ;;
-                1)
+                1) run_smart "TOMEX_Search.sh" "$SEARCH_URL" ;;
+                2)
                     echo -e "${CYAN}➜ Verificando HyDE Project...${RESET}"
                     if [ ! -d "$HOME/HyDE" ]; then
                         sudo git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
                     fi
-                    cd ~/HyDE/Scripts && chmod +x install.sh && ./install.sh
+                    cd ~/HyDE/Scripts && sudo chmod +x install.sh && sudo ./install.sh
                     echo -e "\n${GOLD}➜ HyDE finalizado. Presiona ENTER para volver...${RESET}"
                     read
                     cd - > /dev/null ;;
-                2) rainbow_exit ;;
+                3) rainbow_exit ;;
             esac ;;
         q|Q) rainbow_exit ;;
     esac
