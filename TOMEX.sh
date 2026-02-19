@@ -1,5 +1,6 @@
 #!/bin/bash
-
+  echo -e "Actualizando tus paquetes / Update your Package"
+sudo pacman -Syyu
 # --- Configuración de Colores ---
 VIOLET='\033[38;5;93m'
 CYAN='\033[38;5;51m'
