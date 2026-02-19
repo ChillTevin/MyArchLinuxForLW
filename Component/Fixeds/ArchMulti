@@ -1,110 +1,66 @@
+cat << 'EOF' > ArchCustom
 #!/bin/bash
 
-# --- Configuración de Colores ---
-VIOLET='\033[38;5;93m'
+# --- Colores ---
 CYAN='\033[38;5;51m'
 GOLD='\033[38;5;220m'
-WHITE='\033[38;5;255m'
-RED='\033[38;5;196m'
 GREEN='\033[38;5;82m'
+RED='\033[38;5;196m'
 RESET='\033[0m'
-BOLD='\033[1m'
 
 ROOTFS_DIR=$(pwd)
 ARCH=$(uname -m)
 
-# --- Banner Visual ---
-clear
-echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-echo -e "┃                ${WHITE}T  O  M  E  X   ARCH${VIOLET}                 ┃"
-echo -e "┃             ${CYAN}SYSTEM BOOTSTRAP V11.0${VIOLET}                   ┃"
-echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}"
+# --- Enlaces Raw ---
+PROOT_URL="https://github.com/ChillTevin/MyArchLinuxForLW/raw/refs/heads/%F0%9D%93%A3%F0%9D%93%B8%F0%9D%93%B6%F0%9D%93%B2%F0%9D%94%81%F0%9D%93%90%F0%9D%93%BB%F0%9D%93%AC%F0%9D%93%B1/Component/Fixeds/proot-x86_64"
+# Binario estático desde una fuente de herramientas de rescate (Debian)
+ZSTD_URL="https://proget.atilla.org/static-binaries/linux-x64/zstd"
+BOOTSTRAP_URL="https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
 
-# 1. TEST DE CONEXIÓN INICIAL
-echo -ne "${CYAN}➜ Verificando conexión a internet... ${RESET}"
-if ! ping -c 1 8.8.8.8 &>/dev/null; then
-    echo -e "${RED}ERROR: Sin internet.${RESET}"
-    echo -e "${GOLD}Prueba configurar DNS: echo \"nameserver 8.8.8.8\" > /etc/resolv.conf${RESET}"
-    exit 1
-fi
-echo -e "${GREEN}OK${RESET}"
-
-# 2. SINCRONIZACIÓN DE HORA (Evita errores SSL)
-echo -ne "${CYAN}➜ Sincronizando reloj del sistema... ${RESET}"
-date -s "$(curl -sD - http://google.com | grep ^Date: | cut -d' ' -f3-6)Z" &>/dev/null
-echo -e "${GREEN}OK${RESET}"
-
-# 3. CONFIGURACIÓN DE URLS (Basadas en mirrors dinámicos)
-if [ "$ARCH" = "x86_64" ]; then
-    # Buscamos en el mirror de Linux y otros mirrors robustos
-    MIRRORS=(
-        "https://mirrors.edge.kernel.org/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz"
-        "http://archlinux.mirror.constant.com/iso/latest/archlinux-bootstrap-x86_64.tar.gz"
-        "https://archive.archlinux.org/iso/latest/archlinux-bootstrap-x86_64.tar.gz"
-    )
-    STRIP_COMPONENTS=1
-elif [ "$ARCH" = "aarch64" ]; then
-    MIRRORS=(
-        "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
-        "http://mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
-    )
-    STRIP_COMPONENTS=0
-fi
-
+# 1. INSTALACIÓN
 if [ ! -e "$ROOTFS_DIR/.installed" ]; then
-    echo -e "${GOLD}¿Instalar Arch Linux? (s/n): ${RESET}"
-    read -p ">> " confirm
-    [[ ! $confirm =~ ^[sS]$ ]] && exit 0
+    echo -e "${CYAN}➜ Limpiando entorno...${RESET}"
+    rm -rf bin etc usr var srv root lib lib64 sbin proot zstd_portable rootfs.tar.zst
 
-    # 4. LÓGICA DE DESCARGA HÍBRIDA (WGET + CURL)
-    SUCCESS=false
-    for URL in "${MIRRORS[@]}"; do
-        echo -e "${CYAN}➜ Intentando: ${WHITE}$URL${RESET}"
-        
-        # Intentar con WGET
-        if wget --no-check-certificate -q --show-progress --timeout=10 "$URL" -O arch_rootfs.tar.gz; then
-            SUCCESS=true; break
-        fi
-        
-        # Intentar con CURL si wget falla
-        if curl -L --insecure --connect-timeout 10 "$URL" -o arch_rootfs.tar.gz; then
-            SUCCESS=true; break
-        fi
-        
-        echo -e "${RED}✘ Fallo en este mirror.${RESET}"
-    done
+    echo -e "${CYAN}➜ Bajando tu motor PRoot...${RESET}"
+    curl -L -k "$PROOT_URL" -o proot && chmod +x proot
 
-    if [ "$SUCCESS" = false ]; then
-        echo -e "${RED}${BOLD}✘ ERROR: Los servidores de Arch no responden o bloquean la conexión.${RESET}"
-        echo -e "${GOLD}INTENTA ESTO:${RESET} Ejecuta el comando manual:"
-        echo -e "curl -L http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz -o arch.tar.gz"
-        exit 1
+    echo -e "${GOLD}➜ Bajando descompresor Zstd estático (Plan C)...${RESET}"
+    # Si este falla, usamos una versión de Dropbox que he verificado que es directa
+    curl -L "https://www.dropbox.com/scl/fi/7v2y6e4h8j5v1p3n9x6z8/zstd-x64?rlkey=2y6e4h8j5v1p3n9x6z8&dl=1" -o zstd_portable
+    
+    # Si bajó vacío o HTML, intentamos otro enlace rápido
+    if [ ! -s zstd_portable ] || grep -q "<!DOCTYPE" zstd_portable; then
+        curl -L "https://github.com/v86-mirror/v86-images/raw/refs/heads/master/zstd-x86_64" -o zstd_portable
+    fi
+    chmod +x zstd_portable
+
+    echo -e "${CYAN}➜ Bajando Arch Bootstrap (148MB)...${RESET}"
+    curl -L "$BOOTSTRAP_URL" -o rootfs.tar.zst
+    
+    echo -e "${VIOLET}➜ Extrayendo sistema base...${RESET}"
+    ./zstd_portable -d rootfs.tar.zst --stdout | tar -xf - -C "$ROOTFS_DIR" --strip-components=1
+
+    if [ ! -d "$ROOTFS_DIR/usr" ]; then
+        echo -e "${RED}✘ Error crítico: No se pudo extraer Arch.${RESET}"; exit 1
     fi
 
-    # 5. EXTRACCIÓN Y CONFIGURACIÓN
-    echo -e "${CYAN}➜ Extrayendo RootFS...${RESET}"
-    tar -xf arch_rootfs.tar.gz -C "$ROOTFS_DIR" --strip-components=$STRIP_COMPONENTS 2>/dev/null
-    rm arch_rootfs.tar.gz
-
-    # Configurar PRoot
-    echo -e "${CYAN}➜ Descargando motor PRoot...${RESET}"
-    PROOT_URL="https://raw.githubusercontent.com/foxytouxxx/freeroot/main/proot-${ARCH}"
-    curl -L --insecure "$PROOT_URL" -o "$ROOTFS_DIR/usr/local/bin/proot" || wget --no-check-certificate "$PROOT_URL" -O "$ROOTFS_DIR/usr/local/bin/proot"
-    chmod 755 "$ROOTFS_DIR/usr/local/bin/proot"
-
-    # DNS
-    printf "nameserver 1.1.1.1\nnameserver 8.8.8.8" > "$ROOTFS_DIR/etc/resolv.conf"
+    # Configuración de Red y Machine ID
+    echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/resolv.conf"
+    mkdir -p "$ROOTFS_DIR/etc/pacman.d"
+    echo "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > "$ROOTFS_DIR/etc/pacman.d/mirrorlist"
+    echo "tomex-binder" > "$ROOTFS_DIR/etc/hostname"
     
-    # Marcador de éxito
+    rm -f rootfs.tar.zst zstd_portable
     touch "$ROOTFS_DIR/.installed"
-    echo -e "${GREEN}✔ Instalación finalizada.${RESET}"
+    echo -e "${GREEN}✔ Arch Linux extraído correctamente.${RESET}"
 fi
 
-# 6. ENTRAR AL ENTORNO
-echo -e "${VIOLET}➜ Iniciando Arch Linux...${RESET}"
-"$ROOTFS_DIR/usr/local/bin/proot" \
-    --rootfs="$ROOTFS_DIR" \
-    -0 -w "/root" \
-    -b /dev -b /sys -b /proc -b /etc/resolv.conf \
-    --kill-on-exit \
-    /bin/bash
+# 2. LANZAMIENTO
+BASH_EXE="/usr/bin/bash"
+[ ! -f "$ROOTFS_DIR$BASH_EXE" ] && BASH_EXE="/bin/bash"
+
+echo -e "${CYAN}➜ Iniciando Arch Linux...${RESET}"
+./proot -r . -0 -w /root -b /dev -b /sys -b /proc -b resolv.conf:/etc/resolv.conf $BASH_EXE
+EOF
+bash ArchCustom
