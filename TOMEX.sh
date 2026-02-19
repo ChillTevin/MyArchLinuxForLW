@@ -11,90 +11,72 @@ BG_SELECT='\033[48;5;236m'
 RESET='\033[0m'
 BOLD='\033[1m'
 
-# Comprobación de seguridad: Evitar ejecutar el script principal como root 
-# para que las funciones de usuario normal sean posibles.
+# Validación de inicio: No ejecutar el script padre con sudo
 if [ "$EUID" -eq 0 ]; then 
-  echo -e "${RED}Error: Ejecuta TOMEX sin 'sudo' (ej: ./TOMEX.sh).${RESET}"
-  echo -e "${GOLD}El script te pedirá contraseña cuando necesite instalar algo.${RESET}"
+  echo -e "${RED}Error: No uses 'sudo ./TOMEX.sh'. Ejecútalo normal: ./TOMEX.sh${RESET}"
   exit 1
 fi
 
-echo -e "${VIOLET}Actualizando paquetes del sistema...${RESET}"
+echo -e "${VIOLET}Sincronizando sistema...${RESET}"
 sudo pacman -Syyu --noconfirm
 
-# 1. INSTALACIÓN DE DEPENDENCIAS Y FIX DE YAY
+# 1. DEPENDENCIAS
 clear
 echo -e "${VIOLET}Checking dependencies...${RESET}"
 sudo pacman -S --needed --noconfirm git base-devel wget
 
-# --- LÓGICA DE DETECCIÓN Y FIX DE YAY (Usando privilegios correctamente) ---
+# --- FIX DE YAY (Soporte Universal) ---
 if command -v yay &>/dev/null; then
     if ! yay -V &>/dev/null; then
-        echo -e "${RED}⚠️ Error de librerías detectado en yay.${RESET}"
-        echo -e "${GOLD}Reparando...${RESET}"
+        echo -e "${RED}⚠️ Error de librerías en yay. Reparando...${RESET}"
         sudo rm -rf /tmp/yay
         git clone https://aur.archlinux.org/yay.git /tmp/yay
         cd /tmp/yay && makepkg -si --noconfirm
         cd - > /dev/null
-        echo -e "${GREEN}✔ yay ha sido reparado.${RESET}"
-        sleep 2
     fi
 else
-    echo -e "${CYAN}➜ yay no detectado. Instalando...${RESET}"
+    echo -e "${CYAN}➜ Instalando yay...${RESET}"
     sudo rm -rf /tmp/yay
     git clone https://aur.archlinux.org/yay.git /tmp/yay
     cd /tmp/yay && makepkg -si --noconfirm
     cd - > /dev/null
 fi
 
-# Asegurar directorio de trabajo
+# Directorio de trabajo
 cd "$(dirname "$0")"
 
-rainbow_exit() {
-    clear
-    TEXT=">>> TOMEX POWER EDITION - CERRANDO SESION <<<"
-    COLORS=(196 202 226 190 82 21 93)
-    for (( i=0; i<${#TEXT}; i++ )); do
-        color=${COLORS[$((i % ${#COLORS[@]}))]}
-        echo -ne "\033[38;5;${color}m${TEXT:$i:1}"
-    done
-    echo -e "${RESET}\n"
-    tput cnorm
-    sleep 1.2
-    exit 0
-}
-
-# --- FUNCIÓN INTELIGENTE CON SELECTOR DE PRIVILEGIOS ---
-# $1: Archivo, $2: URL, $3: usar_sudo (true/false)
+# --- FUNCIÓN SMART CON SUDO WGET Y PRIVILEGIOS SELECTIVOS ---
 run_smart() {
     local FILE=$1
     local URL=$2
     local USE_SUDO=$3
 
-    # Descarga si no existe
     if [ ! -f "$FILE" ]; then
-        echo -e "${CYAN}➜ Descargando $FILE desde GitHub...${RESET}"
-        wget -q --show-progress "$URL" -O "$FILE"
+        echo -e "${CYAN}➜ Descargando $FILE con privilegios...${RESET}"
+        # Descarga con sudo para asegurar escritura
+        sudo wget -q --show-progress "$URL" -O "$FILE"
+        # Cambiamos el dueño al usuario actual para que pueda ejecutarlo sin root luego
+        sudo chown $USER:$USER "$FILE"
         chmod +x "$FILE"
     else
-        echo -e "${GREEN}✔ $FILE detectado localmente.${RESET}"
+        echo -e "${GREEN}✔ $FILE detectado.${RESET}"
+        sudo chown $USER:$USER "$FILE"
         chmod +x "$FILE"
     fi
 
-    # Ejecución selectiva
     if [ "$USE_SUDO" = "true" ]; then
-        echo -e "${GOLD}➜ Iniciando con privilegios de Superusuario...${RESET}"
+        echo -e "${GOLD}➜ Ejecutando como ROOT...${RESET}"
         sudo bash "./$FILE"
     else
-        echo -e "${VIOLET}➜ Iniciando como Usuario Normal (Seguro para AUR)...${RESET}"
+        echo -e "${VIOLET}➜ Ejecutando como USUARIO (Seguro para AUR/Buscador)...${RESET}"
         bash "./$FILE"
     fi
 
-    echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver...${RESET}"
+    echo -e "\n${GOLD}➜ Presiona ENTER para volver...${RESET}"
     read
 }
 
-# --- SUBMENÚ: INSTALLERS ---
+# --- SUBMENÚS Y MENÚ PRINCIPAL ---
 submenu_installers() {
     local SUB_OPCIONES=("InstallerApp.sh (GUI Mode)" "InstallerAppCLI.sh (CLI Mode)" "<-- Volver")
     local SUB_CURSOR=0
@@ -104,7 +86,7 @@ submenu_installers() {
     while true; do
         clear
         echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-        echo -e "┃                ${WHITE}T  O  M  E  X   V 10.2${VIOLET}                ┃"
+        echo -e "┃                ${WHITE}T  O  M  E  X   V 10.3${VIOLET}                ┃"
         echo -e "┃                ${CYAN}SMART-LOGIC SECTION${VIOLET}                 ┃"
         echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -118,14 +100,12 @@ submenu_installers() {
 
         read -rsn1 key
         case $key in
-            $'\x1b')
-                read -rsn2 key
+            $'\x1b') read -rsn2 key
                 case $key in
                     '[A') [ $SUB_CURSOR -gt 0 ] && ((SUB_CURSOR--)) ;;
                     '[B') [ $SUB_CURSOR -lt $((SUB_TOTAL-1)) ] && ((SUB_CURSOR++)) ;;
                 esac ;;
-            "") 
-                case $SUB_CURSOR in
+            "") case $SUB_CURSOR in
                     0) run_smart "InstallerApp.sh" "$RAW_URL/InstallerApp.sh" "true" ;;
                     1) run_smart "InstallerAppCLI.sh" "$RAW_URL/InstallerAppCLI.sh" "true" ;;
                     2) return ;;
@@ -134,7 +114,6 @@ submenu_installers() {
     done
 }
 
-# --- MENÚ PRINCIPAL ---
 MAIN_OPCIONES=("Installers" "Buscador de Repositorios (AUR/Pacman)" "Instalar HyDE Project" "Salir")
 CURSOR=0
 TOTAL=${#MAIN_OPCIONES[@]}
@@ -144,7 +123,7 @@ tput civis
 while true; do
     clear
     echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.2${VIOLET}                ┃"
+    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.3${VIOLET}                ┃"
     echo -e "┃          ${CYAN}Kinetic Navigation System${VIOLET}             ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -158,27 +137,21 @@ while true; do
 
     read -rsn1 key
     case $key in
-        $'\x1b')
-            read -rsn2 key
+        $'\x1b') read -rsn2 key
             case $key in
                 '[A') [ $CURSOR -gt 0 ] && ((CURSOR--)) ;;
                 '[B') [ $CURSOR -lt $((TOTAL-1)) ] && ((CURSOR++)) ;;
             esac ;;
-        "")
-            case $CURSOR in
+        "") case $CURSOR in
                 0) submenu_installers ;;
-                1) run_smart "TOMEX_Search.sh" "$SEARCH_URL" "false" ;; # ESTE VA SIN SUDO
-                2)
-                    echo -e "${CYAN}➜ Iniciando instalador de HyDE...${RESET}"
+                1) run_smart "TOMEX_Search.sh" "$SEARCH_URL" "false" ;;
+                2) # HyDE Project
                     if [ ! -d "$HOME/HyDE" ]; then
                         git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
                     fi
-                    cd ~/HyDE/Scripts && chmod +x install.sh && sudo ./install.sh # ESTE LLEVA SUDO
-                    echo -e "\n${GOLD}➜ HyDE finalizado. Presiona ENTER para volver...${RESET}"
-                    read
+                    cd ~/HyDE/Scripts && chmod +x install.sh && sudo ./install.sh
                     cd - > /dev/null ;;
-                3) rainbow_exit ;;
+                3) exit 0 ;;
             esac ;;
-        q|Q) rainbow_exit ;;
     esac
 done
