@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# --- Configuración de Colores (Estilo TOMEX) ---
+VIOLET='\033[38;5;93m'
+CYAN='\033[38;5;51m'
+GOLD='\033[38;5;220m'
+WHITE='\033[38;5;255m'
+RED='\033[38;5;196m'
+GREEN='\033[38;5;82m'
+RESET='\033[0m'
+BOLD='\033[1m'
+
+ROOTFS_DIR=$(pwd)
+ARCH=$(uname -m)
+export PATH=$PATH:~/.local/usr/bin
+
+# --- Detección de Arquitectura y Selección de Mirror ---
+if [ "$ARCH" = "x86_64" ]; then
+    # Mirror oficial para x86_64
+    URL="https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.gz"
+    STRIP_COMPONENTS=1 # El tarball de x86 trae una carpeta interna 'root.x86_64'
+elif [ "$ARCH" = "aarch64" ]; then
+    # Mirror oficial para ARM64
+    URL="http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+    STRIP_COMPONENTS=0
+else
+    echo -e "${RED}✘ Arquitectura no soportada: ${ARCH}${RESET}"
+    exit 1
+fi
+
+# --- Banner Visual ---
+clear
+echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+echo -e "┃                ${WHITE}T  O  M  E  X   ARCH${VIOLET}                 ┃"
+echo -e "┃             ${CYAN}SYSTEM BOOTSTRAP MLT${VIOLET}                 ┃"
+echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}"
+
+if [ ! -e "$ROOTFS_DIR/.installed" ]; then
+    echo -e "${GOLD}¿Deseas instalar Arch Linux en este directorio? (s/n): ${RESET}"
+    read -p ">> " confirm
+    if [[ ! $confirm =~ ^[sS]$ ]]; then
+        echo -e "${RED}Instalación cancelada.${RESET}"
+        exit 0
+    fi
+
+    echo -e "${CYAN}➜ Descargando Arch Linux RootFS (${ARCH})...${RESET}"
+    if ! wget -q --show-progress --tries=5 --timeout=20 "$URL" -O arch_rootfs.tar.gz; then
+        echo -e "${RED}✘ Error al descargar el RootFS.${RESET}"
+        exit 1
+    fi
+
+    echo -e "${CYAN}➜ Extrayendo archivos (esto puede tardar)...${RESET}"
+    # --strip-components=1 se usa para x86_64 para no crear la carpeta 'root.x86_64'
+    tar -xf arch_rootfs.tar.gz -C "$ROOTFS_DIR" --strip-components=$STRIP_COMPONENTS 2>/dev/null
+    rm arch_rootfs.tar.gz
+
+    # --- Configuración de PRoot ---
+    echo -e "${CYAN}➜ Configurando motor PRoot...${RESET}"
+    mkdir -p "$ROOTFS_DIR/usr/local/bin"
+    PROOT_URL="https://raw.githubusercontent.com/foxytouxxx/freeroot/main/proot-${ARCH}"
+    
+    until wget -q --show-progress "$PROOT_URL" -O "$ROOTFS_DIR/usr/local/bin/proot"; do
+        echo -e "${RED}Reintentando descarga de PRoot...${RESET}"
+        sleep 1
+    done
+    chmod 755 "$ROOTFS_DIR/usr/local/bin/proot"
+
+    # --- DNS y Marcador de Instalación ---
+    echo -e "nameserver 1.1.1.1\nnameserver 8.8.8.8" > "$ROOTFS_DIR/etc/resolv.conf"
+    touch "$ROOTFS_DIR/.installed"
+    echo -e "${GREEN}✔ Instalación completada con éxito.${RESET}"
+else
+    echo -e "${GREEN}✔ Sistema Arch detectado. Iniciando...${RESET}"
+fi
+
+# --- Función de Salida ---
+function finish {
+    echo -e "\n${VIOLET}>>> Sesión de Arch cerrada <<<${RESET}"
+}
+trap finish EXIT
+
+# --- Ejecución del Entorno ---
+# Añadimos flags para mejorar la estabilidad (-S para carpetas compartidas)
+"$ROOTFS_DIR/usr/local/bin/proot" \
+    --rootfs="$ROOTFS_DIR" \
+    -0 -w "/root" \
+    -b /dev -b /sys -b /proc -b /etc/resolv.conf \
+    --kill-on-exit \
+    /bin/bash
