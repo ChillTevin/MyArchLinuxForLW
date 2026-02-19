@@ -1,66 +1,75 @@
-cat << 'EOF' > ArchCustom
+cat << 'EOF' > UniversalRunner
 #!/bin/bash
 
-# --- Colores ---
-CYAN='\033[38;5;51m'
-GOLD='\033[38;5;220m'
-GREEN='\033[38;5;82m'
-RED='\033[38;5;196m'
-RESET='\033[0m'
-
+# --- Configuración ---
 ROOTFS_DIR=$(pwd)
 ARCH=$(uname -m)
 
-# --- Enlaces Raw ---
+# --- COLORES ---
+VIOLET='\033[38;5;93m'
+CYAN='\033[38;5;51m'
+GOLD='\033[38;5;220m'
+GREEN='\033[38;5;82m'
+RESET='\033[0m'
+
+# --- URLS (Aquí puedes cambiar la distro) ---
+# Ejemplo Arch: https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst
+# Ejemplo Ubuntu: https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04-base-amd64.tar.gz
+# Ejemplo Alpine: https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-minirootfs-3.18.3-x86_64.tar.gz
+
+URL_DISTRO="https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
 PROOT_URL="https://github.com/ChillTevin/MyArchLinuxForLW/raw/refs/heads/%F0%9D%93%A3%F0%9D%93%B8%F0%9D%93%B6%F0%9D%93%B2%F0%9D%94%81%F0%9D%93%90%F0%9D%93%BB%F0%9D%93%AC%F0%9D%93%B1/Component/Fixeds/proot-x86_64"
-# Binario estático desde una fuente de herramientas de rescate (Debian)
-ZSTD_URL="https://proget.atilla.org/static-binaries/linux-x64/zstd"
-BOOTSTRAP_URL="https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst"
 
-# 1. INSTALACIÓN
+# 1. PREPARACIÓN
 if [ ! -e "$ROOTFS_DIR/.installed" ]; then
-    echo -e "${CYAN}➜ Limpiando entorno...${RESET}"
-    rm -rf bin etc usr var srv root lib lib64 sbin proot zstd_portable rootfs.tar.zst
-
-    echo -e "${CYAN}➜ Bajando tu motor PRoot...${RESET}"
-    curl -L -k "$PROOT_URL" -o proot && chmod +x proot
-
-    echo -e "${GOLD}➜ Bajando descompresor Zstd estático (Plan C)...${RESET}"
-    # Si este falla, usamos una versión de Dropbox que he verificado que es directa
-    curl -L "https://www.dropbox.com/scl/fi/7v2y6e4h8j5v1p3n9x6z8/zstd-x64?rlkey=2y6e4h8j5v1p3n9x6z8&dl=1" -o zstd_portable
+    echo -e "${VIOLET}➜ Inicializando Entorno Universal...${RESET}"
+    rm -rf bin etc usr var srv root lib lib64 sbin proot *.tar.*
     
-    # Si bajó vacío o HTML, intentamos otro enlace rápido
-    if [ ! -s zstd_portable ] || grep -q "<!DOCTYPE" zstd_portable; then
-        curl -L "https://github.com/v86-mirror/v86-images/raw/refs/heads/master/zstd-x86_64" -o zstd_portable
-    fi
-    chmod +x zstd_portable
+    # Descargar tu PRoot
+    curl -L "$PROOT_URL" -o proot && chmod +x proot
 
-    echo -e "${CYAN}➜ Bajando Arch Bootstrap (148MB)...${RESET}"
-    curl -L "$BOOTSTRAP_URL" -o rootfs.tar.zst
-    
-    echo -e "${VIOLET}➜ Extrayendo sistema base...${RESET}"
-    ./zstd_portable -d rootfs.tar.zst --stdout | tar -xf - -C "$ROOTFS_DIR" --strip-components=1
+    # Descargar la Distro
+    EXTENSION="${URL_DISTRO##*.}"
+    echo -e "${CYAN}➜ Descargando sistema (${EXTENSION})...${RESET}"
+    curl -L "$URL_DISTRO" -o rootfs_image
 
-    if [ ! -d "$ROOTFS_DIR/usr" ]; then
-        echo -e "${RED}✘ Error crítico: No se pudo extraer Arch.${RESET}"; exit 1
-    fi
+    # 2. DESCOMPRESIÓN INTELIGENTE
+    echo -e "${GOLD}➜ Extrayendo contenido...${RESET}"
+    case "$URL_DISTRO" in
+        *.tar.gz|*.tgz)
+            tar -xzf rootfs_image -C "$ROOTFS_DIR" --strip-components=1 2>/dev/null || tar -xzf rootfs_image -C "$ROOTFS_DIR"
+            ;;
+        *.tar.xz)
+            tar -xJf rootfs_image -C "$ROOTFS_DIR" --strip-components=1 2>/dev/null || tar -xJf rootfs_image -C "$ROOTFS_DIR"
+            ;;
+        *.tar.zst)
+            # Para ZST en Binder, descargamos el descompresor rápido
+            curl -L "https://github.com/v86-mirror/v86-images/raw/refs/heads/master/zstd-x86_64" -o zstd_p && chmod +x zstd_p
+            ./zstd_p -d rootfs_image --stdout | tar -xf - -C "$ROOTFS_DIR" --strip-components=1
+            rm zstd_p
+            ;;
+        *)
+            echo -e "${RED}Formato no soportado directamente.${RESET}"
+            tar -xf rootfs_image -C "$ROOTFS_DIR"
+            ;;
+    esac
 
-    # Configuración de Red y Machine ID
+    # Configuración de Red Universal
     echo "nameserver 1.1.1.1" > "$ROOTFS_DIR/resolv.conf"
-    mkdir -p "$ROOTFS_DIR/etc/pacman.d"
-    echo "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > "$ROOTFS_DIR/etc/pacman.d/mirrorlist"
-    echo "tomex-binder" > "$ROOTFS_DIR/etc/hostname"
-    
-    rm -f rootfs.tar.zst zstd_portable
     touch "$ROOTFS_DIR/.installed"
-    echo -e "${GREEN}✔ Arch Linux extraído correctamente.${RESET}"
+    echo -e "${GREEN}✔ Sistema listo.${RESET}"
 fi
 
-# 2. LANZAMIENTO
-BASH_EXE="/usr/bin/bash"
-[ ! -f "$ROOTFS_DIR$BASH_EXE" ] && BASH_EXE="/bin/bash"
+# 3. LANZAMIENTO UNIVERSAL
+# Buscamos Bash o Sh (para distros mínimas como Alpine)
+if [ -f "$ROOTFS_DIR/bin/bash" ]; then SH="/bin/bash";
+elif [ -f "$ROOTFS_DIR/usr/bin/bash" ]; then SH="/usr/bin/bash";
+else SH="/bin/sh"; fi
 
-echo -e "${CYAN}➜ Iniciando Arch Linux...${RESET}"
-./proot -r . -0 -w /root -b /dev -b /sys -b /proc -b resolv.conf:/etc/resolv.conf $BASH_EXE
+echo -e "${VIOLET}➜ Entrando al contenedor...${RESET}"
+./proot -r . -0 -w /root \
+    -b /dev -b /sys -b /proc \
+    -b resolv.conf:/etc/resolv.conf \
+    --kill-on-exit $SH
 EOF
-bash ArchCustom
+bash UniversalRunner
