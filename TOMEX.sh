@@ -41,11 +41,11 @@ run_smart() {
 
     if [ -f "$FILE" ]; then
         echo -e "${GREEN}✔ Archivo $FILE detectado localmente. Iniciando...${RESET}"
-        chmod +x "$FILE" && ./"$FILE"
+       sudo chmod +x "$FILE" && ./"$FILE"
     else
         echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
         wget -q --show-progress "$URL" -O "$FILE"
-        chmod +x "$FILE" && ./"$FILE"
+       sudo chmod +x "$FILE" && ./"$FILE"
     fi
     echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver a TOMEX...${RESET}"
     read
