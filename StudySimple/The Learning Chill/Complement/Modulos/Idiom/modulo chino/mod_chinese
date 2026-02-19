@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# --- Configuración de Navegación ---
+niveles=("HSK 1" "HSK 2" "HSK 3" "HSK 4" "HSK 5" "HSK 6" "Custom ")
+modos=("Quiz " "Lectura 󰉿" "Flashcard 󰴓" "Game 󰊴" "Internet 󰖟")
+
+seleccion_hsk=0
+seleccion_modo=0
+pinyin_active=0 # 0: Off, 1: On
+
+definir_colores() {
+    NARANJA='\033[38;5;216m'
+    BG_SEL='\033[48;5;216m'
+    FG_SEL='\033[38;5;235m'
+    GRIS='\033[38;5;244m'
+    RESET='\033[0m'
+    BOLD='\033[1m'
+}
+
+dibujar_hsk() {
+    definir_colores
+    tput cup 0 0
+    clear
+    
+    echo -e "${NARANJA}${BOLD}"
+    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "         M Ó D U L O   D E   C H I N O "
+    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+
+    # --- Lista de Niveles HSK ---
+    for i in "${!niveles[@]}"; do
+        if [ "$seleccion_hsk" -eq $i ]; then
+            printf "  ${BG_SEL}${FG_SEL}${BOLD}  %-35s ${RESET}\n" "${niveles[$i]}"
+        else
+            printf "       ${NARANJA}%-35s${RESET}\n" "${niveles[$i]}"
+        fi
+    done
+
+    # --- Panel de Configuración de la Lección ---
+    echo -e "\n  ${GRIS}────────────────────────────────────────${RESET}"
+    echo -e "  ${NARANJA}${BOLD}Configuración de Lección:${RESET}"
+    
+    # Selector de Modo (Lateral)
+    echo -ne "  ${NARANJA}Modo: ${RESET}${BOLD}< ${modos[$seleccion_modo]} >${RESET}"
+    
+    # Selector de Pinyin (Lateral)
+    if [ "$pinyin_active" -eq 1 ]; then
+        echo -e "   ${NARANJA}Pinyin: ${RESET}${BOLD}[ ON ]${RESET}"
+    else
+        echo -e "   ${NARANJA}Pinyin: ${RESET}${BOLD}[ OFF ]${RESET}"
+    fi
+
+    echo -e "\n  ${GRIS}[↑/↓] Nivel  [←/→] Modo  [P] Toggle Pinyin  [Enter] Start${RESET}"
+    echo -e "  ${GRIS}[Q] Volver al Menú Principal${RESET}"
+}
+
+# --- Bucle de Control ---
+tput civis
+while true; do
+    dibujar_hsk
+    read -rsn3 -t 1 tecla
+    
+    case "$tecla" in
+        $'\e[A') seleccion_hsk=$(( (seleccion_hsk + 6) % 7 )) ;; # Arriba
+        $'\e[B') seleccion_hsk=$(( (seleccion_hsk + 1) % 7 )) ;; # Abajo
+        $'\e[C') seleccion_modo=$(( (seleccion_modo + 1) % 5 )) ;; # Derecha (Modo)
+        $'\e[D') seleccion_modo=$(( (seleccion_modo + 4) % 5 )) ;; # Izquierda (Modo)
+        "p"|"P") pinyin_active=$(( (pinyin_active + 1) % 2 )) ;; # Activar/Desactivar Pinyin
+        "") 
+            if [ -n "$tecla" ]; then
+                # Aquí llamaríamos a la lógica pasándole: NIVEL, MODO y PINYIN
+                echo -e "\n  Iniciando ${niveles[$seleccion_hsk]} en modo ${modos[$seleccion_modo]}..."
+                sleep 2
+            fi ;;
+        "q"|"Q") tput cnorm ; exit 0 ;;
+    esac
+done
