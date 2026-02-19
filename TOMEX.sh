@@ -67,7 +67,7 @@ run_smart() {
     else
         echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
         # Usamos la URL específica proporcionada por el usuario
-        wget -q --show-progress "$URL" -O "$FILE"
+       sudo wget -q --show-progress "$URL" -O "$FILE"
         sudo chmod +x "$FILE"
         sudo bash "./$FILE"
     fi
