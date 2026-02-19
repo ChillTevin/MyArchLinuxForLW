@@ -11,13 +11,15 @@ BG_SELECT='\033[48;5;236m'
 RESET='\033[0m'
 BOLD='\033[1m'
 
-# Comprobación inicial: No ejecutar el script completo como ROOT
+# Comprobación de seguridad: Evitar ejecutar el script principal como root 
+# para que las funciones de usuario normal sean posibles.
 if [ "$EUID" -eq 0 ]; then 
-  echo -e "${RED}Error: No ejecutes TOMEX con 'sudo'. El script te pedirá contraseña cuando la necesite.${RESET}"
+  echo -e "${RED}Error: Ejecuta TOMEX sin 'sudo' (ej: ./TOMEX.sh).${RESET}"
+  echo -e "${GOLD}El script te pedirá contraseña cuando necesite instalar algo.${RESET}"
   exit 1
 fi
 
-echo -e "${VIOLET}Actualizando tus paquetes / Update your Package...${RESET}"
+echo -e "${VIOLET}Actualizando paquetes del sistema...${RESET}"
 sudo pacman -Syyu --noconfirm
 
 # 1. INSTALACIÓN DE DEPENDENCIAS Y FIX DE YAY
@@ -25,20 +27,20 @@ clear
 echo -e "${VIOLET}Checking dependencies...${RESET}"
 sudo pacman -S --needed --noconfirm git base-devel wget
 
-# --- LÓGICA DE DETECCIÓN Y FIX DE YAY (Sin Root para makepkg) ---
+# --- LÓGICA DE DETECCIÓN Y FIX DE YAY (Usando privilegios correctamente) ---
 if command -v yay &>/dev/null; then
     if ! yay -V &>/dev/null; then
         echo -e "${RED}⚠️ Error de librerías detectado en yay.${RESET}"
-        echo -e "${GOLD}Fixeando...${RESET}"
+        echo -e "${GOLD}Reparando...${RESET}"
         sudo rm -rf /tmp/yay
         git clone https://aur.archlinux.org/yay.git /tmp/yay
         cd /tmp/yay && makepkg -si --noconfirm
         cd - > /dev/null
-        echo -e "${GREEN}✔ yay ha sido reparado correctamente.${RESET}"
+        echo -e "${GREEN}✔ yay ha sido reparado.${RESET}"
         sleep 2
     fi
 else
-    echo -e "${CYAN}➜ yay no detectado. Instalando por primera vez...${RESET}"
+    echo -e "${CYAN}➜ yay no detectado. Instalando...${RESET}"
     sudo rm -rf /tmp/yay
     git clone https://aur.archlinux.org/yay.git /tmp/yay
     cd /tmp/yay && makepkg -si --noconfirm
@@ -62,22 +64,33 @@ rainbow_exit() {
     exit 0
 }
 
-# --- FUNCIÓN PARA EJECUTAR CON LÓGICA SMART (MODIFICADA PARA NO USAR ROOT) ---
+# --- FUNCIÓN INTELIGENTE CON SELECTOR DE PRIVILEGIOS ---
+# $1: Archivo, $2: URL, $3: usar_sudo (true/false)
 run_smart() {
     local FILE=$1
     local URL=$2
+    local USE_SUDO=$3
 
-    if [ -f "$FILE" ]; then
-        echo -e "${GREEN}✔ Archivo $FILE detectado localmente. Iniciando...${RESET}"
-        chmod +x "$FILE"
-        bash "./$FILE"  # Quitamos el SUDO aquí para que yay/makepkg funcionen
-    else
-        echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
+    # Descarga si no existe
+    if [ ! -f "$FILE" ]; then
+        echo -e "${CYAN}➜ Descargando $FILE desde GitHub...${RESET}"
         wget -q --show-progress "$URL" -O "$FILE"
         chmod +x "$FILE"
-        bash "./$FILE"  # Quitamos el SUDO aquí
+    else
+        echo -e "${GREEN}✔ $FILE detectado localmente.${RESET}"
+        chmod +x "$FILE"
     fi
-    echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver a TOMEX...${RESET}"
+
+    # Ejecución selectiva
+    if [ "$USE_SUDO" = "true" ]; then
+        echo -e "${GOLD}➜ Iniciando con privilegios de Superusuario...${RESET}"
+        sudo bash "./$FILE"
+    else
+        echo -e "${VIOLET}➜ Iniciando como Usuario Normal (Seguro para AUR)...${RESET}"
+        bash "./$FILE"
+    fi
+
+    echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver...${RESET}"
     read
 }
 
@@ -91,7 +104,7 @@ submenu_installers() {
     while true; do
         clear
         echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-        echo -e "┃                ${WHITE}T  O  M  E  X   V 10.1${VIOLET}                ┃"
+        echo -e "┃                ${WHITE}T  O  M  E  X   V 10.2${VIOLET}                ┃"
         echo -e "┃                ${CYAN}SMART-LOGIC SECTION${VIOLET}                 ┃"
         echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -113,8 +126,8 @@ submenu_installers() {
                 esac ;;
             "") 
                 case $SUB_CURSOR in
-                    0) run_smart "InstallerApp.sh" "$RAW_URL/InstallerApp.sh" ;;
-                    1) run_smart "InstallerAppCLI.sh" "$RAW_URL/InstallerAppCLI.sh" ;;
+                    0) run_smart "InstallerApp.sh" "$RAW_URL/InstallerApp.sh" "true" ;;
+                    1) run_smart "InstallerAppCLI.sh" "$RAW_URL/InstallerAppCLI.sh" "true" ;;
                     2) return ;;
                 esac ;;
         esac
@@ -131,7 +144,7 @@ tput civis
 while true; do
     clear
     echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.1${VIOLET}                ┃"
+    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.2${VIOLET}                ┃"
     echo -e "┃          ${CYAN}Kinetic Navigation System${VIOLET}             ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -154,13 +167,13 @@ while true; do
         "")
             case $CURSOR in
                 0) submenu_installers ;;
-                1) run_smart "TOMEX_Search.sh" "$SEARCH_URL" ;;
+                1) run_smart "TOMEX_Search.sh" "$SEARCH_URL" "false" ;; # ESTE VA SIN SUDO
                 2)
-                    echo -e "${CYAN}➜ Verificando HyDE Project...${RESET}"
+                    echo -e "${CYAN}➜ Iniciando instalador de HyDE...${RESET}"
                     if [ ! -d "$HOME/HyDE" ]; then
                         git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
                     fi
-                    cd ~/HyDE/Scripts && chmod +x install.sh && ./install.sh # Sin sudo aquí
+                    cd ~/HyDE/Scripts && chmod +x install.sh && sudo ./install.sh # ESTE LLEVA SUDO
                     echo -e "\n${GOLD}➜ HyDE finalizado. Presiona ENTER para volver...${RESET}"
                     read
                     cd - > /dev/null ;;
