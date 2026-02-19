@@ -11,6 +11,12 @@ BG_SELECT='\033[48;5;236m'
 RESET='\033[0m'
 BOLD='\033[1m'
 
+# Comprobación inicial: No ejecutar el script completo como ROOT
+if [ "$EUID" -eq 0 ]; then 
+  echo -e "${RED}Error: No ejecutes TOMEX con 'sudo'. El script te pedirá contraseña cuando la necesite.${RESET}"
+  exit 1
+fi
+
 echo -e "${VIOLET}Actualizando tus paquetes / Update your Package...${RESET}"
 sudo pacman -Syyu --noconfirm
 
@@ -19,7 +25,7 @@ clear
 echo -e "${VIOLET}Checking dependencies...${RESET}"
 sudo pacman -S --needed --noconfirm git base-devel wget
 
-# --- LÓGICA DE DETECCIÓN Y FIX DE YAY ---
+# --- LÓGICA DE DETECCIÓN Y FIX DE YAY (Sin Root para makepkg) ---
 if command -v yay &>/dev/null; then
     if ! yay -V &>/dev/null; then
         echo -e "${RED}⚠️ Error de librerías detectado en yay.${RESET}"
@@ -33,6 +39,7 @@ if command -v yay &>/dev/null; then
     fi
 else
     echo -e "${CYAN}➜ yay no detectado. Instalando por primera vez...${RESET}"
+    sudo rm -rf /tmp/yay
     git clone https://aur.archlinux.org/yay.git /tmp/yay
     cd /tmp/yay && makepkg -si --noconfirm
     cd - > /dev/null
@@ -55,21 +62,20 @@ rainbow_exit() {
     exit 0
 }
 
-# --- FUNCIÓN PARA EJECUTAR CON LÓGICA SMART ---
+# --- FUNCIÓN PARA EJECUTAR CON LÓGICA SMART (MODIFICADA PARA NO USAR ROOT) ---
 run_smart() {
     local FILE=$1
     local URL=$2
 
     if [ -f "$FILE" ]; then
         echo -e "${GREEN}✔ Archivo $FILE detectado localmente. Iniciando...${RESET}"
-        sudo chmod +x "$FILE"
-        sudo bash "./$FILE"
+        chmod +x "$FILE"
+        bash "./$FILE"  # Quitamos el SUDO aquí para que yay/makepkg funcionen
     else
         echo -e "${CYAN}➜ Archivo no encontrado. Descargando desde GitHub...${RESET}"
-        # Usamos la URL específica proporcionada por el usuario
-       sudo wget -q --show-progress "$URL" -O "$FILE"
-        sudo chmod +x "$FILE"
-        sudo bash "./$FILE"
+        wget -q --show-progress "$URL" -O "$FILE"
+        chmod +x "$FILE"
+        bash "./$FILE"  # Quitamos el SUDO aquí
     fi
     echo -e "\n${GOLD}➜ Proceso finalizado. Presiona ENTER para volver a TOMEX...${RESET}"
     read
@@ -85,7 +91,7 @@ submenu_installers() {
     while true; do
         clear
         echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-        echo -e "┃                ${WHITE}T  O  M  E  X   V 9.4${VIOLET}                 ┃"
+        echo -e "┃                ${WHITE}T  O  M  E  X   V 10.1${VIOLET}                ┃"
         echo -e "┃                ${CYAN}SMART-LOGIC SECTION${VIOLET}                 ┃"
         echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -116,7 +122,6 @@ submenu_installers() {
 }
 
 # --- MENÚ PRINCIPAL ---
-# Agregada la opción del Buscador Universal
 MAIN_OPCIONES=("Installers" "Buscador de Repositorios (AUR/Pacman)" "Instalar HyDE Project" "Salir")
 CURSOR=0
 TOTAL=${#MAIN_OPCIONES[@]}
@@ -126,7 +131,7 @@ tput civis
 while true; do
     clear
     echo -e "${VIOLET}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.0${VIOLET}                ┃"
+    echo -e "┃                ${WHITE}T  O  M  E  X   V 10.1${VIOLET}                ┃"
     echo -e "┃          ${CYAN}Kinetic Navigation System${VIOLET}             ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
 
@@ -153,9 +158,9 @@ while true; do
                 2)
                     echo -e "${CYAN}➜ Verificando HyDE Project...${RESET}"
                     if [ ! -d "$HOME/HyDE" ]; then
-                        sudo git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
+                        git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
                     fi
-                    cd ~/HyDE/Scripts && sudo chmod +x install.sh && sudo ./install.sh
+                    cd ~/HyDE/Scripts && chmod +x install.sh && ./install.sh # Sin sudo aquí
                     echo -e "\n${GOLD}➜ HyDE finalizado. Presiona ENTER para volver...${RESET}"
                     read
                     cd - > /dev/null ;;
