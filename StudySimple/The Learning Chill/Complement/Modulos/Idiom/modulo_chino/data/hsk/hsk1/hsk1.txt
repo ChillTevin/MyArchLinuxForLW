@@ -1,0 +1,154 @@
+Chino (Hanzi),Pinyin,Español
+我|wǒ|Yo
+我们|wǒmen|Nosotros
+你|nǐ|Tú
+你们|nǐmen|Vosotros
+他|tā|Él
+她|tā|Ella
+他们|tāmen|Ellos
+她们|tāmen|Ellas
+这 (这儿)|zhè (zhèr)|Este (aquí)
+那 (那儿)|nà (nàr)|Ese (allí)
+哪 (哪儿)|nǎ (nǎr)|Cuál (dónde)
+谁|shuí|Quién
+什么|shénme|Qué
+多少|duōshǎo|Cuánto
+几|jǐ|Cuántos
+怎么|zěnme|Cómo
+怎么样|zěnmeyàng|Qué tal
+一|yī|Uno
+二|èr|Dos
+三|sān|Tres
+四|sì|Cuatro
+五|wǔ|Cinco
+六|liù|Seis
+七|qī|Siete
+八|bā|Ocho
+九|jiǔ|Nueve
+十|shí|Diez
+零|líng|Cero
+个|gè|Clasificador general
+岁|suì|Años (edad)
+本|běn|Clasificador libros
+些|xiē|Algunos
+块|kuài|Trozo / Moneda
+不|bù|No
+没|méi|No (tener/haber)
+很|hěn|Muy
+太|tài|Demasiado
+都|dōu|Todos
+和|hé|Y
+在|zài|En / Estar
+的|de|Partícula posesiva/adjetival
+了|le|Partícula de cambio
+吗|ma|Partícula interrogativa
+呢|ne|Partícula de énfasis
+喂|wèi|Hola (teléfono)
+家|jiā|Casa / Familia
+学校|xuéxiào|Escuela
+饭店|fàndiàn|Restaurante
+商店|shāngdiàn|Tienda
+医院|yīyuàn|Hospital
+火车站|huǒchēzhàn|Estación de tren
+中国|zhōngguó|China
+北京|běijīng|Pekín
+上|shàng|Arriba
+下|xià|Abajo
+前面|qiánmiàn|Delante
+后面|hòumiàn|Detrás
+里|lǐ|Dentro
+今天|jīntiān|Hoy
+明天|míngtiān|Mañana
+昨天|zuótiān|Ayer
+上午|shàngwǔ|Mañana (temprano)
+中午|zhōngwǔ|Mediodía
+下午|xiàwǔ|Tarde
+年|nián|Año
+月|yuè|Mes
+日|rì|Día
+星期|xīngqī|Semana
+点|diǎn|Hora (en punto)
+分钟|fēnzhōng|Minuto
+现在|xiànzài|Ahora
+时候|shíhou|Momento
+爸爸|bàba|Papá
+妈妈|māma|Mamá
+儿子|érzi|Hijo
+女儿|nǚ'ér|Hija
+老师|lǎoshī|Profesor
+学生|xuésheng|Estudiante
+同学|tóngxué|Compañero
+朋友|péngyou|Amigo
+医生|yīshēng|Médico
+先生|xiānsheng|Señor
+小姐|xiǎojiě|Señorita
+衣服|yīfu|Ropa
+水|shuǐ|Agua
+菜|cài|Plato / Verdura
+米饭|mǐfàn|Arroz cocido
+水果|shuǐguǒ|Fruta
+苹果|píngguǒ|Manzana
+茶|chá|Té
+杯子|bēizi|Vaso / Taza
+钱|qián|Dinero
+飞机|fēijī|Avión
+出租车|chūzūchē|Taxi
+电视|diànshì|Televisión
+电脑|diànnǎo|Ordenador
+电影|diànyǐng|Película
+天气|tiānqì|Clima
+猫|māo|Gato
+狗|gǒu|Perro
+东西|dōngxi|Cosa
+人|rén|Persona
+名字|míngzi|Nombre
+书|shū|Libro
+汉语|hànyǔ|Idioma chino
+字|zì|Carácter / Letra
+桌子|zhuōzi|Mesa
+椅子|yǐzi|Silla
+谢谢|xièxie|Gracias
+不客气|búkèqì|De nada
+再见|zàijiàn|Adiós
+请|qǐng|Por favor
+对不起|duìbùqǐ|Lo siento
+没关系|méiguānxì|No importa
+是|shì|Ser
+有|yǒu|Tener / Haber
+看|kàn|Mirar / Leer
+听|tīng|Escuchar
+说话|shuōhuà|Hablar
+读|dú|Leer en voz alta
+写|xiě|Escribir
+看见|kànjiàn|Ver
+叫|jiào|Llamarse
+来|lái|Venir
+回|huí|Volver
+去|qù|Ir
+吃|chī|Comer
+喝|hē|Beber
+睡觉|shuìjiào|Dormir
+打电话|dǎdiànhuà|Llamar por teléfono
+做|zuò|Hacer
+买|mǎi|Comprar
+开|kāi|Abrir / Conducir
+坐|zuò|Sentarse
+住|zhù|Vivir
+学习|xuéxí|Estudiar
+工作|gōngzuò|Trabajar
+下雨|xiàyǔ|Llover
+爱|ài|Amar
+喜欢|xǐhuān|Gustar
+想|xiǎng|Pensar / Querer
+认识|rènshi|Conocer
+会|huì|Saber (habilidad)
+能|néng|Poder
+好|hǎo|Bueno / Bien
+大|dà|Grande
+小|xiǎo|Pequeño
+多|duō|Mucho
+少|shǎo|Poco
+冷|lěng|Frío
+热|rè|Caliente
+高兴|gāoxìng|Feliz
+漂亮|piàoliàng|Guapo / Bonito
