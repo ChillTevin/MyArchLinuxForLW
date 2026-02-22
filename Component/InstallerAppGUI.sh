@@ -76,15 +76,46 @@ check_tools() {
     opts+=("$m_back")
 }
 
-# --- Lógica de Instalación ---
 install_helper() {
     clear
     echo -e "${CYAN}${BOLD}➜ Executing task...${RESET}"
+    
+    # Creamos un directorio temporal neutral para evitar líos de permisos
+    local TEMP_DIR="/tmp/tomex_install"
+    mkdir -p "$TEMP_DIR"
+    cd "$TEMP_DIR" || return
+
     case $1 in
-        "YAY") sudo pacman -S --needed --noconfirm base-devel git && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm && cd .. && rm -rf yay ;;
-        "PARU") sudo pacman -S --needed --noconfirm base-devel git && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si --noconfirm && cd .. && rm -rf paru ;;
-        "BLACK") curl -O https://blackarch.org/strap.sh && chmod +x strap.sh && sudo ./strap.sh && rm strap.sh ;;
+        "YAY")
+            echo -e "${CYAN}Clonando e instalando YAY...${RESET}"
+            sudo pacman -S --needed --noconfirm base-devel git
+            # Clonamos de forma limpia
+            git clone https://aur.archlinux.org/yay.git
+            cd yay || exit
+            # makepkg NO DEBE ser root, pero -si instalará con sudo automáticamente
+            makepkg -si --noconfirm
+            cd .. && rm -rf yay
+            ;;
+        "PARU")
+            echo -e "${CYAN}Clonando e instalando PARU...${RESET}"
+            sudo pacman -S --needed --noconfirm base-devel git
+            git clone https://aur.archlinux.org/paru.git
+            cd paru || exit
+            makepkg -si --noconfirm
+            cd .. && rm -rf paru
+            ;;
+        "BLACK")
+            echo -e "${CYAN}Configurando BlackArch (Requiere privilegios)...${RESET}"
+            # Aquí sí usamos sudo para descargar y ejecutar el script de strap
+            curl -O https://blackarch.org/strap.sh
+            chmod +x strap.sh
+            sudo ./strap.sh
+            rm strap.sh
+            ;;
     esac
+    
+    # Volvemos al directorio del componente
+    cd "$DIR_COMP" || exit
     echo -e "${GREEN}Done!${RESET}"; sleep 2
 }
 
