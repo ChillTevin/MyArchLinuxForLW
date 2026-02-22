@@ -26,7 +26,7 @@ pre_flight_check() {
     # 3. Verificar Yay (AUR Helper)
     if ! command -v yay &>/dev/null; then
         echo -e "${VIOLET}Instalando yay automáticamente...${NC}"
-        cd /tmp && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm && cd .. && rm -rf yay
+         cd .. && sudo mkdir tmp && cd /tmp && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm && cd .. && rm -rf yay
     fi
 }
 

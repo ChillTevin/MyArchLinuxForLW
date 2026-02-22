@@ -197,7 +197,7 @@ while true; do
             $'\e[D') idx_lang=$(( (idx_lang + 2) % 3 )); secret_count=0 ;;
            "") 
                 case $seleccion in
-                    0) run_smart "InstallerApp.sh" ;;
+                    0) run_smart "InstallerAppGUI.sh" ;;
                     1) run_smart "TOMEX_Search.sh" ;;
                     2) run_smart "tools.sh" ;;
                     3) run_smart "DesktopEnv.sh" ;;
