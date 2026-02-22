@@ -1,0 +1,28 @@
+1. Crear el nuevo usuario
+Primero, creamos el usuario y le asignamos su carpeta personal. Usaremos el grupo wheel, que es el grupo tradicional en Arch para usuarios con permisos administrativos.
+
+Bash
+useradd -m -G wheel tu_usuario
+-m: Crea el directorio /home/tu_usuario.
+
+-G wheel: Añade al usuario al grupo de privilegios.
+
+2. Asignar una contraseña
+El usuario no podrá iniciar sesión hasta que tenga una clave:
+
+Bash
+passwd tu_usuario
+3. Habilitar privilegios con Sudo
+Por defecto, Arch Linux bloquea el acceso de los usuarios al comando sudo por seguridad. Debes decirle al sistema que los miembros del grupo wheel tienen permiso.
+
+Abre el archivo de configuración con el comando de seguridad visudo:
+
+Bash
+EDITOR=nano visudo
+Busca esta línea (está casi a la mitad del archivo):
+# %wheel ALL=(ALL:ALL) ALL
+
+Elimina el símbolo # al principio de la línea para activarla. Debe quedar así:
+%wheel ALL=(ALL:ALL) ALL
+
+Guarda los cambios (Ctrl+O, Enter) y sal (Ctrl+X).
