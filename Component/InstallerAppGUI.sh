@@ -178,8 +178,8 @@ while true; do
         "") 
             selection="${opts[$cursor]}"
             case "$selection" in
-                *"$i_app"*) bash "$DIR_COMP/installerApp.sh" "$idx_lang" ;;
-                *"$i_cli"*) bash "$DIR_COMP/installerAppCLI.sh" "$idx_lang" ;;
+                *"$i_app"*) bash "$DIR_COMP/InstallerApp.sh" "$idx_lang" ;;
+                *"$i_cli"*) bash "$DIR_COMP/InstallerAppCLI.sh" "$idx_lang" ;;
                 *"$h_yay"*) install_helper "YAY" ;;
                 *"$h_paru"*) install_helper "PARU" ;;
                 *"$h_black"*) install_helper "BLACK" ;;
