@@ -113,15 +113,16 @@ run_smart() {
     local FILE=$1
     local TARGET="$COMPONENT_DIR/$FILE"
     clear
+    
     if [ ! -f "$TARGET" ]; then
         echo -e "${CYAN}➜ Downloading $FILE...${RESET}"
         wget -q --show-progress "$BRANCH_URL/$FILE" -O "$TARGET"
         chmod +x "$TARGET"
     fi
+    
+    # Ejecución pasando el idioma explícitamente
     bash "$TARGET" "$idx_lang"
-    echo -e "\n${GOLD}➜ Enter...${RESET}"; read
 }
-
 # --- Bucle Principal ---
 tput civis
 while true; do
