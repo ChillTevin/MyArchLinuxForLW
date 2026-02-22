@@ -1,5 +1,5 @@
 #!/bin/bash
-
+idx_lang=${1:-0}
 # --- Configuración de Rutas Dinámicas ---
 DIR_BASE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 RUTA_IDIOM="$DIR_BASE/Complement/Modulos/Idiom"
