@@ -15,8 +15,6 @@ RESET='\033[0m'
 BOLD='\033[1m'
 
 # --- Recepción del Idioma ---
- 
-
 case $idx_lang in
     0) # ESPAÑOL
         title="🧰  T O M E X   T O O L S"
@@ -93,7 +91,7 @@ check_gui() {
 setup_remote_desktop() {
     clear
     echo -e "${MORADO}${BOLD}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-    echo -e "┃             🌐  REMOTE DESKTOP SETUP                 ┃"
+    echo -e "┃            🌐  REMOTE DESKTOP SETUP                ┃"
     echo -e "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${RESET}\n"
     
     echo -e "${CYAN}1) XRDP (Protocolo RDP - Ideal para conectar desde Windows)${RESET}"
@@ -155,16 +153,22 @@ setup_remote_desktop() {
     # --- LÓGICA LOCAL VS NO LOCAL (NGROK) ---
     if [ "$net_choice" == "2" ]; then
         echo -e "\n${GREEN}➜ Configurando acceso global con Ngrok...${RESET}"
+        
+        # Instalar Ngrok de forma oficial si no existe
         if ! command -v ngrok &> /dev/null; then
-            yay -S --needed --noconfirm ngrok
+            echo -e "${CYAN}Descargando Ngrok v3 Stable...${RESET}"
+            wget -q --show-progress https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O /tmp/ngrok.tgz
+            echo -e "${CYAN}Instalando en /usr/local/bin (Requiere permisos sudo)...${RESET}"
+            sudo tar -xvzf /tmp/ngrok.tgz -C /usr/local/bin
+            rm -f /tmp/ngrok.tgz
         fi
         
-        echo -e "\n${ROSA}${BOLD}⚠️ IMPORTANTE:${RESET} Ngrok requiere un 'Authtoken' para conexiones TCP."
-        echo -e "Si te da error, ve a https://dashboard.ngrok.com, copia tu token y ejecuta:"
-        echo -e "${WHITE}ngrok config add-authtoken <tu_token>${RESET} en otra terminal.\n"
+        # Configurar Authtoken
+        echo -e "${CYAN}Aplicando Authtoken de Ngrok...${RESET}"
+        ngrok config add-authtoken 1uNKiNAV8XVggSemelPcZmjYXuI_5zQY3FmebAtuHBhx2YuW5
         
-        echo -e "${GREEN}Iniciando túnel seguro hacia el mundo exterior en el puerto $port...${RESET}"
-        sleep 4
+        echo -e "\n${GREEN}Iniciando túnel seguro hacia el mundo exterior en el puerto $port...${RESET}"
+        sleep 2
         ngrok tcp $port
     else
         local ip_local=$(ip a | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | cut -d/ -f1 | head -n1)
