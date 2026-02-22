@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo pacman -Syyu ----no-confirm
+
 # --- Configuración de Colores ---
 VIOLET='\033[38;5;93m'
 CYAN='\033[38;5;51m'
