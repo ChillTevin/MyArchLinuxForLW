@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo pacman -Syyu ----no-confirm
+sudo pacman -Syyu --noconfirm
 
 # --- Configuración de Colores ---
 VIOLET='\033[38;5;93m'
