@@ -1,13 +1,14 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%">
 
-  # 🚀 TOMEX MANAGER 
-  ### *The Ultimate Cloud-Based Script Manager for Arch Linux*
+  # 🚀 𝓣𝓞𝓜𝓔𝓧  𝓐𝓡𝓒𝓗  𝓥11
+  ### *The Ultimate Cloud-Based Command Center for Arch Linux*
 
   <table>
     <tr>
       <td bgcolor="#1e1e2e"><a href="README.md"><font color="#ffffff">🇪🇸 ESPAÑOL</font></a></td>
       <td bgcolor="#5b21b6"><b><a href="README_EN.md"><font color="#ffffff">🇺🇸 ENGLISH</font></a></b></td>
+      <td bgcolor="#1e1e2e"><a href="README_CN.md"><font color="#ffffff">🇨🇳 中文</font></a></td>
     </tr>
   </table>
 
@@ -16,6 +17,7 @@
   ![Arch](https://img.shields.io/badge/OS-Arch_Linux-1793d1?style=for-the-badge&logo=arch-linux)
   ![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
   ![TUI](https://img.shields.io/badge/Interface-Kinetic_TUI-51efff?style=for-the-badge)
+  ![Status](https://img.shields.io/badge/Status-Active_V11-green?style=for-the-badge)
 
   <img src="https://server.wallpaperalchemy.com/storage/wallpapers/200/arch-linux-wallpaper-4k-card.png" width="100%" alt="Arch Linux Banner">
 </div>
@@ -23,47 +25,68 @@
 ---
 
 ## 💎 Project Vision
-**TOMEX** is not just a collection of scripts; it is a **portable command center**. Inspired by the legendary **Utility CDs** from the 2000s, this project aims to provide an "all-in-one" experience for students and Linux enthusiasts who need a ready-to-work system in seconds.
+**TOMEX Arch V11** is not just a script; it is a **high-performance ecosystem**. Inspired by the legendary utility toolkits of the early 2000s, this project transforms the often-intimidating Arch Linux terminal into a modern, violet-themed command center.
 
-### 🎯 Optimized for "Legacy" Hardware (Old PCs)
-This project was born with a specific mission: **Reviving old computers**. 
-> 💻 **Ultra-Lightweight:** By using a minimal TUI (Terminal User Interface) and "Ghost" cloud execution, TOMEX consumes almost **zero RAM** while running. 
-> ⚙️ **Efficiency:** It skips heavy desktop environments and focuses on high-performance tools, making it exceptionally smooth on old laptops or low-resource desktop PCs.
+Our mission is to empower students and developers by providing a "battle-ready" system in seconds. We believe that your OS shouldn't be a hurdle, but a springboard for your creativity.
+
+### 🎯 Optimized for "Legacy" Hardware & High-Stakes Study
+> 💻 **Ultra-Lightweight:** Designed to breathe new life into old laptops. By utilizing a kinetic TUI and cloud execution, TOMEX maintains a near-zero RAM footprint while running.
+> 🧘 **The Learning Chill:** We focus on a "Deep Work" aesthetic. Minimalist colors and a real-time clock help you maintain focus during long study or coding sessions.
 
 ---
 
-## 🔥 Key Features & Script Details
+## 🔥 Key Features & System Architecture
 
-### 🌍 `Dynamic Multilingual System`
-Instantly toggle between **English** and **Spanish**. The UI strings update in real-time without closing the app, making it accessible for international students.
+### 🌍 `Dynamic Multilingual UI`
+TOMEX is built for the global student. Instantly toggle between **English, Spanish, and Chinese**. The UI strings, headers, and descriptions adapt in real-time without requiring a restart, making the Arch ecosystem accessible to everyone.
 
 ### ☁️ `Ghost-Execution` (Cloud Power)
-Our main installer scripts are fetched directly from GitHub:
-- **InstallerApp.sh (GUI):** A visual selector for those who prefer a more intuitive interface.
-- **InstallerAppCLI.sh (CLI):** A high-speed, arrow-key-based menu for power users.
-- 🚫 **No Clutter:** Scripts run from memory or `/tmp`, keeping your system clean of residual files.
+Our modular architecture fetches the latest updates directly from this repository:
+- **Zero Clutter:** Core components run from temporary memory, keeping your root directory clean.
+- **Always Updated:** You get the latest installation logic and package lists every time you run the manager.
 
-### ⚡ `Smart-Logic & Dependencies`
-TOMEX is intelligent. Before any installation, it performs a **Pre-Flight Check**:
-1. It syncs your Arch mirrors to avoid **404 errors**.
-2. It ensures `git`, `base-devel`, and `wget` are present.
-3. It elevates privileges using `sudo` only when strictly necessary.
+### 🖥️ `The Great Desktop Selector`
+Forget complex command-line installation strings. TOMEX includes a massive, automated installer for over **17 Desktop Environments**, including:
+* **Modern Giants:** GNOME, KDE Plasma, Cinnamon.
+* **Efficient Classics:** Xfce, MATE, LXQt.
+* **Exotic/Specialized:** Deepin, Pantheon, UKUI, Cutefish, Sugar, and even mobile-centric Phosh.
+* *The system automatically enables the correct Display Manager (GDM, SDDM, or LightDM) for you.*
+
+### ⚡ `Smart-Logic & Wine Management`
+TOMEX performs a **Pre-Flight Check** before any action:
+1. Syncs mirrors to prevent 404 errors.
+2. Ensures `git`, `base-devel`, and `wget` are present.
+3. Provides specialized tools for **Wine Compatibility Layers** (Glibc/Bionic modes).
 
 ---
-## 🧪 Deep Experimentation & Future ProjectsBeyond being a simple installer, this repo is a playground for Linux Ricing.I highly encourage users to experiment further! 
 
-You can integrate other projects like custom Window Managers (Hyprland, Sway), specialized development environments, or security tools. This project is a gateway to understanding how Arch Linux scales from a "terminal-only" machine to a beautiful, modern workstation.
+## 📦 The "Study & Focus" Software Pack
+We’ve hand-picked the best tools for the modern student:
 
-<div align="center"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRxRKdAJb0FzHGvQwjHuZBpUTvGHLFzKn_jIg&s" alt="Minimalist Setup"></div>📦 Software Selection (The "Study" Pack)ApplicationCategoryBenefit<font color="#9333ea">Obsidian</font>📝 ProductivityBest-in-class local Markdown notes.<font color="#9333ea">OnlyOffice</font>📑 OfficeFull compatibility with MS Office formats.<font color="#9333ea">Brave Browser</font>🌐 WebHigh privacy and low RAM usage.<font color="#1793d1">HyDE Project</font>🎨 AestheticsHigh-end visual configuration (Rice).<div align="center"><img src="https://www.google.com/url?sa=E&source=gmail&q=https://raw.githubusercontent.com/andreasbm/readme/master/assets/lines/rainbow.png" width="100%"><p><i>"A minimalist system isn't the one with the fewest things, but the one with exactly what you need."</i></p>ChillTevin | 2026</div>
+| Application | Category | Benefit |
+| :--- | :--- | :--- |
+| <font color="#9333ea">**Obsidian**</font> | 📝 Productivity | The gold standard for local Markdown note-taking. |
+| <font color="#9333ea">**OnlyOffice**</font> | 📑 Office | 100% compatibility with MS Office formats. |
+| <font color="#9333ea">**Brave Browser**</font> | 🌐 Web | Privacy-focused with extremely low RAM usage. |
+| <font color="#1793d1">**HyDE Project**</font> | 🎨 Aesthetics | Top-tier visual "Ricing" for the ultimate setup. |
 
 ---
+
+## 🧪 Deep Customization & Future-Proofing
+This repository is more than an installer—it's a playground. We encourage users to experiment with:
+- **Custom Window Managers:** Integration with Hyprland and Sway.
+- **Specialized Dev Environments:** One-click setups for Python, Rust, and Node.js.
+- **Security Tools:** Hardening your Arch Linux for professional environments.
+
+---
+
 ## 🛠️ Quick Start Guide
 
-To unleash the magic of **TOMEX**, simply run this command in your Arch Linux terminal:
+To unleash the magic of **TOMEX V11**, simply copy and paste this command into your Arch Linux terminal:
 
 ```bash
-# Only copy and paste
-wget https://raw.githubusercontent.com/ChillTevin/MyArchLinuxForLW/refs/heads/main/TOMEX.sh
-sudo chmod +x TOMEX.sh
+# Clone and Run
+git clone [https://github.com/ChillTevin/MyArchLinuxForLW.git](https://github.com/ChillTevin/MyArchLinuxForLW.git)
+cd MyArchLinuxForLW
+chmod +x TOMEX.sh
 ./TOMEX.sh
-
