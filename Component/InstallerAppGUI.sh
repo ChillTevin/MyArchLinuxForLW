@@ -49,8 +49,8 @@ while true; do
                 0) 
                     # AQUÍ LANZAS TU APP STORE ACTUAL
                     # Si tu App Store se llama de otra forma, cambia el nombre aquí
-                    if [ -f "$DIR_COMP/InstallerAppGUI.sh" ]; then
-                        bash "$DIR_COMP/InstallerAppGUI.sh" "$idx_lang"
+                    if [ -f "$DIR_COMP/installerApp.sh" ]; then
+                        bash "$DIR_COMP/installerApp.sh" "$idx_lang"
                     else
                         echo -e "${CYAN}Iniciando App Store...${RESET}"
                         sleep 1
@@ -58,8 +58,8 @@ while true; do
                     ;;
                 1) 
                     # AQUÍ LANZAS EL DE LA TERMINAL
-                    if [ -f "$DIR_COMP/InstallerAppCLI.sh" ]; then
-                        bash "$DIR_COMP/InstallerAppCLI.sh" "$idx_lang"
+                    if [ -f "$DIR_COMP/installerAppCLI.sh" ]; then
+                        bash "$DIR_COMP/installerAppCLI.sh" "$idx_lang"
                     else
                         echo -e "${RED}Error: InstallerAppCLI.sh no encontrado en $DIR_COMP${RESET}"
                         sleep 2
