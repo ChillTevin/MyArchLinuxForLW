@@ -85,14 +85,6 @@ Se recomienda el uso de una **Nerd Font** (como *JetBrainsMono Nerd Font*) para 
 Copia y pega este bloque en tu terminal:
 
 ```bash
-# Clonar el repositorio
-git clone [https://github.com/ChillTevin/MyArchLinuxForLW.git](https://github.com/ChillTevin/MyArchLinuxForLW.git)
 
-# Entrar al directorio
-cd MyArchLinuxForLW
+wget 
 
-# Otorgar permisos de ejecución
-chmod +x TOMEX.sh
-
-# Iniciar la experiencia
-./TOMEX.sh

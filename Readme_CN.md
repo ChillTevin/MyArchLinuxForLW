@@ -87,13 +87,4 @@ TOMEX 会自动检测你的硬件和基础库。包含管理 **Wine** 兼容层�
 
 ```bash
 # 克隆仓库
-git clone [https://github.com/ChillTevin/MyArchLinuxForLW.git](https://github.com/ChillTevin/MyArchLinuxForLW.git)
-
-# 进入目录
-cd MyArchLinuxForLW
-
-# 赋予执行权限
-chmod +x TOMEX.sh
-
-# 开启体验
-./TOMEX.sh
+wget

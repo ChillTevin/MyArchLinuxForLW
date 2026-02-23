@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# --- Color Palette (Cyber Violet) ---
+# --- Cyber Violet Palette ---
 VIOLET='\033[38;5;129m'
 DEEP_PURPLE='\033[38;5;93m'
 MAGENTA='\033[38;5;201m'
@@ -11,132 +11,135 @@ RED='\033[38;5;196m'
 GREEN='\033[38;5;82m'
 RESET='\033[0m'
 BOLD='\033[1m'
+DIM='\033[2m'
+
+# --- Environment Detection ---
+IS_DOCKER=false
+if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup; then
+    IS_DOCKER=true
+fi
+
+# --- State Variables ---
+LOGGED_USER=""
+HAS_PRIVILEGED_USER=false
 
 # --- Root Check ---
 if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}ERROR: This script must be run as root (use sudo).${RESET}"
+   echo -e "${RED}ERROR: This portal requires Root privileges.${RESET}"
    exit 1
 fi
 
-# --- Logic: Check for Existing Privileged Users ---
-# We check the 'wheel' group for existing members
-EXISTING_USERS=$(grep '^wheel:' /etc/group | cut -d: -f4)
-HAS_PRIVILEGED_USER=false
-if [ -n "$EXISTING_USERS" ]; then
-    HAS_PRIVILEGED_USER=true
-fi
+check_privileged() {
+    EXISTING_USERS=$(grep '^wheel:' /etc/group | cut -d: -f4 | tr ',' ' ')
+    if [ -n "$EXISTING_USERS" ]; then
+        HAS_PRIVILEGED_USER=true
+        if [ -z "$LOGGED_USER" ]; then
+            LOGGED_USER=$(echo $EXISTING_USERS | awk '{print $1}')
+        fi
+    else
+        HAS_PRIVILEGED_USER=false
+    fi
+}
 
-# --- UI Functions ---
 draw_header() {
     clear
     echo -e "${DEEP_PURPLE}╭──────────────────────────────────────────────────────────╮"
-    echo -e "│${BOLD}${MAGENTA}             💜  SYSTEM REGISTRATION PORTAL  💜           ${RESET}${DEEP_PURPLE}│"
+    echo -e "│${BOLD}${MAGENTA}             💜  TOMEX SYSTEM PORTAL  💜                  ${RESET}${DEEP_PURPLE}│"
     echo -e "╰──────────────────────────────────────────────────────────╯${RESET}"
-}
-
-show_warning() {
-    if [ "$HAS_PRIVILEGED_USER" = true ]; then
-        echo -e "  ${VIOLET}STATUS:${RESET} ${GREEN}Privileged account detected: (${EXISTING_USERS})${RESET}"
-        echo -e "  ${VIOLET}NOTICE:${RESET} ${WHITE}You can skip registration and proceed to TOMEX.${RESET}"
+    if [ "$IS_DOCKER" = true ]; then
+        echo -e "      ${CYAN}[MODO: CONTENEDOR DETECTADO]${RESET}"
     else
-        echo -e "  ${VIOLET}STATUS:${RESET} ${RED}No privileged user found. Registration required.${RESET}"
+        echo -e "      ${GREEN}[MODO: SISTEMA REAL / HARDWARE]${RESET}"
     fi
-    echo ""
 }
 
-# --- Registration Logic ---
 register_user() {
+    if [ "$HAS_PRIVILEGED_USER" = true ]; then
+        echo -e "\n  ${RED}[!] Admin already exists.${RESET}"
+        sleep 2; return
+    fi
     draw_header
-    echo -e "  ${MAGENTA}📝 CREATE NEW ADMINISTRATOR${RESET}"
+    echo -e "  ${MAGENTA}📝 NEW ACCOUNT REGISTRATION${RESET}"
     echo -e "  ${VIOLET}───────────────────────────${RESET}"
     
-    read -p "  ➜ Enter Username: " new_username
-    
-    if id "$new_username" &>/dev/null; then
-        echo -e "\n  ${RED}Error: User '$new_username' already exists!${RESET}"
-        sleep 2
-        return
-    fi
+    read -p "  ➜ Desired Username: " LOGGED_USER
+    useradd -m -G wheel -s /bin/bash "$LOGGED_USER"
+    echo -e "  ${CYAN}➜ Create password for $LOGGED_USER:${RESET}"
+    passwd "$LOGGED_USER"
 
-    # 1. Create user
-    useradd -m -G wheel "$new_username"
-    
-    # 2. Set password
-    echo -e "  ${CYAN}➜ Set password for $new_username:${RESET}"
-    passwd "$new_username"
-
-    # 3. Enable Sudo (Uncomment %wheel in /etc/sudoers)
-    if [ -f /etc/sudoers ]; then
-        sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-        # Alternative in case the line format is different
-        sed -i 's/^#%wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-        echo -e "\n  ${GREEN}✔ Sudo privileges granted to 'wheel' group.${RESET}"
-    fi
-
-    echo -e "  ${GREEN}✔ User '$new_username' registered successfully!${RESET}"
-    sleep 2
-    start_tomex
-}
-
-# --- Repository Logic ---
-start_tomex() {
-    echo -e "\n  ${MAGENTA}🚀 Initializing TOMEX Environment...${RESET}"
-    
-    # Check dependencies
-    for pkg in git; do
-        if ! command -v $pkg &>/dev/null; then
-            pacman -S --needed --noconfirm $pkg &>/dev/null
-        fi
-    done
-
-    if [ -d "MyArchLinuxForLW" ]; then
-        rm -rf MyArchLinuxForLW
-    fi
-
-    echo -e "  ${VIOLET}➜ Cloning repository...${RESET}"
-    git clone https://github.com/ChillTevin/MyArchLinuxForLW
-    
-    cd MyArchLinuxForLW || exit
-    if [ -f "tomex.sh" ]; then
-        chmod +x tomex.sh
-        echo -e "  ${GREEN}✔ Starting tomex.sh...${RESET}"
-        sleep 1
-        bash tomex.sh
+    # --- Lógica Inteligente de Sudoers ---
+    if [ "$IS_DOCKER" = true ]; then
+        # En Docker permitimos NOPASSWD para evitar bloqueos de terminal
+        echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
     else
-        echo -e "  ${RED}Error: tomex.sh not found in repository!${RESET}"
-        read -p "Press Enter to return..."
+        # En sistema real, usamos la configuración segura (pide contraseña)
+        sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+        sed -i 's/^#%wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
     fi
-    exit 0
+
+    echo -e "\n  ${GREEN}✔ Account registered successfully.${RESET}"
+    HAS_PRIVILEGED_USER=true
+    sleep 2
 }
 
-# --- Main Menu Loop ---
-options=(" [ REGISTER ] " " [ START TOMEX ] " " [ EXIT ] ")
-cursor=0
-
-while true; do
+login_and_start() {
     draw_header
-    show_warning
+    USER_HOME="/home/$LOGGED_USER"
+    REPO_URL="https://github.com/ChillTevin/MyArchLinuxForLW"
 
+    echo -e "  ${MAGENTA}🛠️  Checking dependencies...${RESET}"
+    pacman -Sy --needed --noconfirm base-devel git &>/dev/null
+
+    echo -e "  ${VIOLET}🚀 Synchronizing Repository...${RESET}"
+    sudo -u "$LOGGED_USER" bash -c "
+        if [ ! -d '$USER_HOME/MyArchLinuxForLW' ]; then
+            git clone $REPO_URL '$USER_HOME/MyArchLinuxForLW'
+        else
+            cd '$USER_HOME/MyArchLinuxForLW' && git pull
+        fi
+    "
+
+    if [ -f "$USER_HOME/MyArchLinuxForLW/TOMEX.sh" ]; then
+        chmod +x "$USER_HOME/MyArchLinuxForLW/TOMEX.sh"
+        echo -e "${GREEN}  ✔ Starting session...${RESET}"
+        sleep 1
+        
+        cd "$USER_HOME/MyArchLinuxForLW"
+        
+        if [ "$IS_DOCKER" = true ]; then
+            # Modo Docker: sudo -i para evitar error ioctl
+            sudo -i -u "$LOGGED_USER" bash -c "cd '$USER_HOME/MyArchLinuxForLW' && ./TOMEX.sh; exec bash"
+        else
+            # Modo Real: login tradicional con persistencia
+            exec su - "$LOGGED_USER" -c "cd '$USER_HOME/MyArchLinuxForLW' && ./TOMEX.sh; exec bash"
+        fi
+        exit 0
+    else
+        echo -e "${RED}  [!] Error: TOMEX.sh not found.${RESET}"
+        sleep 3
+    fi
+}
+
+# --- Main Menu (Igual al anterior) ---
+cursor=0
+while true; do
+    check_privileged
+    draw_header
+    options=(" [ REGISTER ] " " [ LOGIN ] " " [ EXIT ] ")
     for i in "${!options[@]}"; do
         if [ $i -eq $cursor ]; then
             echo -e "  ${MAGENTA}➜ ${BG_SELECT}${WHITE}${BOLD} ${options[$i]} ${RESET}"
         else
-            echo -e "     ${LAVANDA}${options[$i]}${RESET}"
+            [[ $i -eq 0 && "$HAS_PRIVILEGED_USER" = true ]] && echo -e "     ${RED}${DIM}${options[$i]} (Locked)${RESET}" || \
+            ([[ $i -eq 1 && "$HAS_PRIVILEGED_USER" = false ]] && echo -e "     ${DIM}${options[$i]} (Wait)${RESET}" || \
+            echo -e "     ${LAVANDA}${options[$i]}${RESET}")
         fi
     done
-
     read -rsn1 key
     [[ $key == $'\x1b' ]] && { read -rsn2 k; key+="$k"; }
-
     case $key in
         $'\x1b[A') [ $cursor -gt 0 ] && ((cursor--)) ;;
-        $'\x1b[B') [ $cursor -lt $((${#options[@]}-1)) ] && ((cursor++)) ;;
-        "") 
-            case $cursor in
-                0) register_user ;;
-                1) start_tomex ;;
-                2) echo -e "\n  ${VIOLET}Goodbye!${RESET}"; exit 0 ;;
-            esac
-            ;;
+        $'\x1b[B') [ $cursor -lt 2 ] && ((cursor++)) ;;
+        "") [[ $cursor -eq 0 ]] && register_user; [[ $cursor -eq 1 ]] && login_and_start; [[ $cursor -eq 2 ]] && exit 0 ;;
     esac
 done

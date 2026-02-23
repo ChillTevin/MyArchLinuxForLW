@@ -86,7 +86,4 @@ To unleash the magic of **TOMEX V11**, simply copy and paste this command into y
 
 ```bash
 # Clone and Run
-git clone [https://github.com/ChillTevin/MyArchLinuxForLW.git](https://github.com/ChillTevin/MyArchLinuxForLW.git)
-cd MyArchLinuxForLW
-chmod +x TOMEX.sh
-./TOMEX.sh
+wget
