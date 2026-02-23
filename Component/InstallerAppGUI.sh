@@ -19,6 +19,8 @@ DIR_COMP="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # --- Variables de Estado ---
 down_count=0
 uninstall_mode=false
+seq=0
+archinstall_unlocked=false
 
 # --- Función: Traducciones Dinámicas ---
 get_text() {
@@ -73,6 +75,12 @@ check_tools() {
         command -v paru &> /dev/null && opts+=("${RED}󰛌  $u_paru${RESET}")
         [ -f /etc/pacman.d/blackarch-mirrorlist ] && opts+=("${RED}󰛌  $u_black${RESET}")
     fi
+
+    # --- EASTER EGG: Archinstall ---
+    if [ "$archinstall_unlocked" = true ]; then
+        opts+=("${CYAN}🐧 Archinstall${RESET}")
+    fi
+
     opts+=("$m_back")
 }
 
@@ -163,9 +171,14 @@ while true; do
     read -rsn1 k
     [[ $k == $'\x1b' ]] && { read -rsn2 r; k+="$r"; }
 
+    # Lógica de Captura y Secuencia Secreta
     case $k in
-        $'\x1b[A') [ $cursor -gt 0 ] && ((cursor--)); down_count=0 ;;
-        $'\x1b[B') 
+        $'\x1b[A') # Arriba
+            [[ $seq == 0 || $seq == 1 ]] && ((seq++)) || seq=1
+            [ $cursor -gt 0 ] && ((cursor--)); down_count=0 
+            ;;
+        $'\x1b[B') # Abajo
+            [[ $seq == 2 || $seq == 3 ]] && ((seq++)) || seq=0
             if [ $cursor -lt $((${#opts[@]}-1)) ]; then
                 ((cursor++)); down_count=0
             else
@@ -174,8 +187,21 @@ while true; do
                     uninstall_mode=$([ "$uninstall_mode" = true ] && echo false || echo true)
                     down_count=0; cursor=0
                 fi
-            fi ;;
-        "") 
+            fi 
+            ;;
+        $'\x1b[D') # Izquierda
+            [[ $seq == 4 ]] && ((seq++)) || seq=0 
+            ;;
+        $'\x1b[C') # Derecha
+            if [[ $seq == 5 ]]; then
+                archinstall_unlocked=true
+                seq=0
+            else
+                seq=0
+            fi 
+            ;;
+        "") # Enter
+            seq=0
             selection="${opts[$cursor]}"
             case "$selection" in
                 *"$i_app"*) bash "$DIR_COMP/InstallerApp.sh" "$idx_lang" ;;
@@ -186,7 +212,18 @@ while true; do
                 *"$u_yay"*) remove_helper "YAY" ;;
                 *"$u_paru"*) remove_helper "PARU" ;;
                 *"$u_black"*) remove_helper "BLACK" ;;
+                *"Archinstall"*) 
+                    clear
+                    echo -e "${CYAN}🐧 Iniciando Archinstall...${RESET}"
+                    sudo pacman -S --needed --noconfirm archinstall &>/dev/null
+                    sudo archinstall
+                    echo -e "${GREEN}Done!${RESET}"; sleep 2
+                    ;;
                 *"$m_back"*) tput cnorm; exit 0 ;;
-            esac ;;
+            esac 
+            ;;
+        *) 
+            seq=0 
+            ;;
     esac
 done
